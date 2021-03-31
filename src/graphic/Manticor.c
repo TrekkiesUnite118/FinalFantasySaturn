@@ -1,0 +1,9 @@
+Uint16 Manticor_num = 2;
+Uint16 Manticor_size = 1152;
+Uint16 Manticor_width = 48;
+Uint16 Manticor_height = 48;
+char Manticor_name[] = "MANTICOR.SPR";
+Uint32 Manticor_pal[] = {
+	0x0000,0x135FE7,0xB8F8,0xFFFFFF,0x0000,0x0000,0x0000,0x0000,
+	0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
+};

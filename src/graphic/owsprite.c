@@ -1,0 +1,9 @@
+Uint16 owsprite_num = 48;
+Uint16 owsprite_size = 64;
+Uint16 owsprite_width = 16;
+Uint16 owsprite_height = 8;
+char owsprite_name[] = "OWSPRITE.SPR";
+Uint32 owsprite_pal[] = {
+	0x0000,0xF0F0F,0x2355C,0xFF6900,0x1945F8,0x2171FC,0x5EAAE3,0x9DCDF8,
+	0xFFFFFF,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
+};
