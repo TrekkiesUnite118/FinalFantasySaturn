@@ -146,7 +146,6 @@ int main() {
                     default:
                         static_screen_init((&battleScreen.bg), waterfall_name, waterfall_num, waterfall_pal, bMap_name, bMap_width, bMap_height);
                         break;
-
                 }
 
                 static_init(&battleScreen);
