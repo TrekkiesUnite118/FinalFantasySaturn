@@ -1,0 +1,15 @@
+Font: Dwedit on nesdev
+
+Extremely Special Thanks:
+ndiddy for giving me a code base example of SBL to get started with.
+
+Special thanks:
+fafling
+vbt
+mrkotfw
+Emerald Nova
+Ponut64
+XL2
+
+The Mednafen devs
+The SBL devs and everyone at Sega Developer Technical Support
