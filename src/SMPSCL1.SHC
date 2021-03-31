@@ -1,0 +1,8 @@
+-optimize=1
+-string=const
+-show=expansion
+-div=nomask
+-cpu=sh2
+-include=..\..\..\sh\include,..\..\..\segalib\include,..\..\per\smpclib
+-def=_SH
+-macsave=0

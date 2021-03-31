@@ -1,0 +1,19 @@
+OUTPUT	smpscl1.abs
+INPUT	..\..\lib\strt1_h.obj
+INPUT	..\..\lib\strt2_h.obj
+INPUT	..\..\v_blank\v_blank.obj
+INPUT	..\..\v_blank\set_vb.obj
+INPUT	..\..\per\smpclib\per_x1.obj
+INPUT	..\..\per\smpclib\per_x2.obj
+INPUT	..\..\per\smpclib\per_x3.obj
+INPUT	smpscl1.obj
+LIBRARY	..\..\..\segalib\lib\sega_per.lib
+LIBRARY	..\..\..\segalib\lib\sega_mth.lib
+LIBRARY	..\..\..\segalib\lib\sega_spr.lib
+LIBRARY	..\..\..\segalib\lib\sega_scl.lib
+LIBRARY	..\..\..\segalib\lib\sega_int.lib
+LIBRARY	..\..\..\sh\lib\shcnpic.lib
+ENTRY	START
+START	P,SEGA_P,C,SEGA_C,D,SEGA_D,B,SEGA_B(06010000)
+PRINT 	smpscl1.map
+EXIT
