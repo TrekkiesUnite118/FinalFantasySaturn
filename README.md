@@ -1,7 +1,7 @@
 # Final Fantasy for Sega Saturn
 This is an attempt at porting the NES version of Final Fantasy 1 to the Sega Saturn using SBL (Sega Basic Library). This originally began as a branch off of ndiddy's sample code, but has morphed into it's own thing. 
 
-This project works by using the original NES ROM for all buth the graphics data, which has been converted over to a Saturn friendly format. You will need to provide your own NES ROM. For sound CD Audio recordings of the PSP/PSX sound track are used.
+This project works by using the original NES ROM for all but the graphics data, which has been converted over to a Saturn friendly format. You will need to provide your own NES ROM. For sound CD Audio recordings of the PSP/PSX sound track are used.
 
 ndiddy's original example project can be found here: 
 
