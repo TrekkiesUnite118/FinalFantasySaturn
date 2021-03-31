@@ -70,12 +70,9 @@ int main() {
 
     player_bat_init(MTH_FIXED(200), MTH_FIXED(40));
     
-    
     SCL_SetSpriteMode(SCL_TYPE5,SCL_MIX,SCL_SP_WINDOW);
 
     while(1) {
-        
-        
         frame++;
         player_input();
         //print_num(frame, 0, 0);
