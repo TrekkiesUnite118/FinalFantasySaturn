@@ -58,7 +58,7 @@ SclConfig nbg1Scfg;
 void static_init(STATIC_SCREEN *screen) {
 	
 	Uint8 *VramWorkP;
-	Uint8 *TilemapVram;
+	Uint16 *TilemapVram;
 	Uint16 BackCol;
 	SclVramConfig vram_cfg;
 	

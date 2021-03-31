@@ -36,7 +36,7 @@ SclConfig Rbg0Scfg;
 void scroll_init(LEVEL *level) {
 	
 	Uint8 *VramWorkP;
-	Uint8 *TilemapVram;
+	Uint16*TilemapVram;
 	Uint16 BackCol;
 	SclVramConfig vram_cfg;
 	
