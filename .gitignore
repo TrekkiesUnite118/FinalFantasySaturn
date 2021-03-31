@@ -1,0 +1,6 @@
+cd
+out
+*.o
+*.cof
+*.map
+*.bin
