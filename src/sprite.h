@@ -20,24 +20,24 @@ typedef void (*IterateFunc)(struct SpriteInfo *);
 #define SPRITE_MAXFALLSPEED (MTH_FIXED(14))
 
 typedef struct SpriteInfo {
-	Uint16 char_num; //tile number
-	Uint16 index; //where the sprite is in the sprites array
-	Uint16 options;
-	Uint16 state;
-	Uint16 collision;
-	Fixed32 xPos;
-	Fixed32 yPos;
-	Fixed32 xSize;
-	Fixed32 ySize;
-	Fixed32 dx;
-	Fixed32 dy;
-	Fixed32 scale;
-	Fixed32 angle;
-	Uint16 mirror;
-	Uint16 animTimer; //timer for animations
-	Uint16 moveTimer; //timer for movements
-	Uint16 animCursor; //where we are in animation array
-	IterateFunc iterate;
+    Uint16 char_num; //tile number
+    Uint16 index; //where the sprite is in the sprites array
+    Uint16 options;
+    Uint16 state;
+    Uint16 collision;
+    Fixed32 xPos;
+    Fixed32 yPos;
+    Fixed32 xSize;
+    Fixed32 ySize;
+    Fixed32 dx;
+    Fixed32 dy;
+    Fixed32 scale;
+    Fixed32 angle;
+    Uint16 mirror;
+    Uint16 animTimer; //timer for animations
+    Uint16 moveTimer; //timer for movements
+    Uint16 animCursor; //where we are in animation array
+    IterateFunc iterate;
 } SPRITE_INFO;
 
 #define SPRITE_LIST_SIZE (20)

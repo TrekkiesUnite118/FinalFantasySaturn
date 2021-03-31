@@ -86,7 +86,7 @@ void parseEnemyName(ENEMY_DATA *enemy, int id) {
 
     Uint8 *enemy_lut_ptr = (Uint8*) enemy_lut_offset;
 
-	Uint8 b1 = enemy_lut_ptr[lut_index];
+    Uint8 b1 = enemy_lut_ptr[lut_index];
     lut_index++;
     Uint8 b2 = enemy_lut_ptr[lut_index];
 
@@ -166,9 +166,9 @@ void parseBattleData(BATTLE_DATA *battle, int id) {
 
 void enemy_bat_draw() {
 
-	print_string(enemies[0].name, 19, 6, 8);
-	print_string(enemies[1].name, 21, 6, 8);
-	print_string(enemies[2].name, 23, 6, 8);
-	print_string(enemies[3].name, 25, 6, 8);
-	
+    print_string(enemies[0].name, 19, 6, 8);
+    print_string(enemies[1].name, 21, 6, 8);
+    print_string(enemies[2].name, 23, 6, 8);
+    print_string(enemies[3].name, 25, 6, 8);
+    
 }

@@ -1,7 +1,7 @@
 #ifndef CD_H
 #define CD_H
 
-#define LWRAM	(2097152)
+#define LWRAM    (2097152)
 #define LWRAM_BUFFER    (2490368)
 //init cd stuff
 void cd_init(void);

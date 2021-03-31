@@ -66,12 +66,12 @@ void sound_init() {
 void sound_cdda(int track) {
     CdcPly ply;
     CDC_PLY_STYPE(&ply) = CDC_PTYPE_TNO; //track number
-	CDC_PLY_STNO(&ply)  = track;
-	CDC_PLY_SIDX(&ply) = 1;
-	CDC_PLY_ETYPE(&ply) = CDC_PTYPE_TNO;
-	CDC_PLY_ETNO(&ply)  = track;
-	CDC_PLY_EIDX(&ply) = 99;
-	CDC_PLY_PMODE(&ply) = CDC_PM_DFL | 0xf; //0xf = infinite repetitions
+    CDC_PLY_STNO(&ply)  = track;
+    CDC_PLY_SIDX(&ply) = 1;
+    CDC_PLY_ETYPE(&ply) = CDC_PTYPE_TNO;
+    CDC_PLY_ETNO(&ply)  = track;
+    CDC_PLY_EIDX(&ply) = 99;
+    CDC_PLY_PMODE(&ply) = CDC_PM_DFL | 0xf; //0xf = infinite repetitions
     CDC_CdPlay(&ply);
 }
 
