@@ -12,13 +12,12 @@ const int LWRAM_START = 0x00200000;
 
 const int OVERWORLDMAP_OFFSET = 0x00204010;
 const int OVERWORLDMAP_PTRADD = -0x3FF0;
-const int OVERWORLDMAP_START =     0x00204210;
+const int OVERWORLDMAP_START = 0x00204210;
 const int OVERWORLDMAP_END = 0x00207F50;
 
-const int OVERWORLD_TILEDATA =    0x00200010;
+const int OVERWORLD_TILEDATA = 0x00200010;
 
-const int BATTLE_BACKDROP =    0x00203310;
-
+const int BATTLE_BACKDROP = 0x00203310;
 
 const int RNG_TABLE = 0x0023F110;
 
@@ -32,12 +31,8 @@ int negative = 0;
 int battleStep = -1;
 int battleCount = -1;
 
-
 void overworld_init() {
     decomp_map();
-    
-    //update_plane(0, 0);
-    
 }
 
 void decomp_map() {
@@ -72,8 +67,6 @@ void decomp_map() {
                 for(co = 0; co < run && coX < 256; co++, coX++)
                     decompressedMap[coY][coX] = temp;
             }
-            //print_string("temp: ", 9, 0); print_num(temp, 9, 9);
-            //print_string("run: ", 10, 0); print_num(run, 10, 10);
         }
     }
 }
@@ -111,7 +104,6 @@ void update_plane(int map_y, int map_x) {
     }
 } 
 
-
 BYTE getTileProperty1(int map_y, int map_x){
 
     Uint16 tile = decompressedMap[map_y][map_x];
@@ -124,7 +116,6 @@ BYTE getTileProperty1(int map_y, int map_x){
     return prop;
 }
 
-//Gets second tile proerty byte
 BYTE getTileProperty2(int map_y, int map_x){
     Uint16 tile = decompressedMap[map_y][map_x];
 
@@ -136,7 +127,6 @@ BYTE getTileProperty2(int map_y, int map_x){
     return prop;
 }
 
-//Gets second tile proerty byte
 BYTE getTileBattleBackdrop(int map_y, int map_x){
     Uint16 tile = decompressedMap[map_y][map_x];
 
@@ -166,8 +156,6 @@ int encounterBattle() {
      char *rngPtr = (char*) offset;
 
     BYTE rng = rngPtr[0];
-
-    //print_string("RNG: ", 5, 0); print_num(rng, 5, 5);
 
     if(rng < BATTLE_CHANCE){
         return 1;
@@ -223,9 +211,6 @@ BYTE getBattleNum(int domain) {
     offset = BATTLE_LOOKUP_TABLE + (domain * 8) + formation;
     char *battlePtr = (char*) offset;
     BYTE battleNum = battlePtr[0];
-    //print_string("OFFSET: ", 10, 0); print_num(offset, 10, 8);
-
 
     return battleNum;
-
 }
