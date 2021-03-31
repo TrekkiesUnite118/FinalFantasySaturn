@@ -18,3 +18,22 @@ https://segaxtreme.net/resources/sbl-libraries.7/
 You will also need a C environment that can compile for the SH-2 CPUs. If you have GCC installed you should be ok, however ndiddy has a zip archive that should have most of the environment ready to go in one easy package:
 
 https://github.com/shicky256/SaturnDev#readme
+
+
+## What's currently implemented:
+
+Currently the following is implmented:
+
+* Decompression of the Overworld Map Tile Map from the original ROM.
+* Drawing the Overworld map to RBG0 and allowing it to scroll.
+* Overworld Map player sprites are drawn to the screen and animate.
+* Character class states can be initialized from the original ROM.
+* Enemy and Battle data is parsed from the Original ROM.
+* Calculations for if you encounter a battle, what type of battle, and what enemies you encounter.
+* The logic for what scenery for the battle you encounter is implemented.
+* Simple state system to transition to the battle screen.
+* Battle Screen is drawn to NBG1 and character battle sprites are drawn.
+* Character names and HP are drawn to the battle screen.
+* Names of the types of enemies in the battle formation you encountered are drawn on screen.
+* You can exit the battle screen back to the overworld by pressing the A button.
+
