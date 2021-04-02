@@ -3,11 +3,12 @@
 #include    <sega_spr.h>
 #include    <sega_scl.h> 
 #include    <sega_mth.h>
-#include     <sega_def.h>
+#include    <sega_def.h>
+#include    <sega_per.h>
 
 #include    "cd.h"
 #include    "graphicrefs.h"
-#include     "vdp2structs.h"
+#include    "vdp2structs.h"
 #include    "sprite.h"
 #include    "scroll.h"
 #include    "static.h"
@@ -42,15 +43,21 @@ static inline void static_screen_init(LAYER *screen, char *tiles_name, Uint16 ti
     screen->map_width = map_width;
     screen->map_height = map_height;
 }
-
 Uint32 frame = 0;
+
 int main() {
+    
     int sound_inited = 0;
     cd_init();
     cd_load("FFANTASY.BIN", (void *)LWRAM, 262160);
     state = TO_OW_STATE;
     sprite_init();
     overworld_init();
+
+    //The original game relied on the randomness of NES RAM on 
+    //Power On. The Saturn clears it's RAM on start up, so to
+    //try and mimick the NES behavior I'm getting the 
+    //seconds value from the RTC.
     
     LEVEL level1;
     STATIC_SCREEN battleScreen;
@@ -71,12 +78,13 @@ int main() {
     player_bat_init(MTH_FIXED(200), MTH_FIXED(40));
     
     SCL_SetSpriteMode(SCL_TYPE5,SCL_MIX,SCL_SP_WINDOW);
+    setRngSeed();
 
     while(1) {
         frame++;
         player_input();
         //print_num(frame, 0, 0);
-        
+       
         SPR_2OpenCommand(SPR_2DRAW_PRTY_OFF);
         switch(state) {
             case TO_OW_STATE:

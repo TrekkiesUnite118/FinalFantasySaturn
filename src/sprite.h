@@ -40,6 +40,10 @@ typedef struct SpriteInfo {
     IterateFunc iterate;
 } SPRITE_INFO;
 
+Uint16 total_sprites;
+Uint16 enemySpriteStart;
+Uint16 enemyCramStart;
+
 #define SPRITE_LIST_SIZE (20)
 extern SPRITE_INFO sprites[];
 
@@ -63,5 +67,8 @@ void sprite_deleteall(void);
 //collision: 1 to do collision, 0 to not
 //returns the tile the sprite is over
 Uint16 sprite_move(SPRITE_INFO *sprite, int collision);
+
+void initSmallEnemySprites(char *sprite_name, Uint16 cramValue, Uint16 startPos);
+void initLargeEnemySprites(char *sprite_name, Uint16 cramValue, Uint16 startPos);
 
 #endif

@@ -23,6 +23,7 @@
     #define PAD_RB    TRG_R
     #define PAD_LB    TRG_L
     
+    
     /****************************************
     *        declare external objects        *
     ****************************************/

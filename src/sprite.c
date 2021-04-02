@@ -27,9 +27,24 @@ SPR_2DefineWork(work2D, CommandMax, GourTblMax, LookupTblMax, CharMax, DrawPrtyM
 
 Uint32 image_buf[4096];
 
+Uint16 large_enemy_num = 2;
+Uint16 large_enemy_size = 1152;
+Uint16 large_enemy_width = 48;
+Uint16 large_enemy_height = 48;
+
+Uint16 small_enemy_num = 2;
+Uint16 small_enemy_size = 512;
+Uint16 small_enemy_width = 32;
+Uint16 small_enemy_height = 32;
+
+
 
 void sprite_init() {
     int count, i;
+
+    total_sprites = 0;
+    enemySpriteStart = 0;
+    enemyCramStart = 0;
 
     SCL_Vdp2Init();
     SPR_2Initial(&work2D);
@@ -47,21 +62,29 @@ void sprite_init() {
         SPR_2SetChar(i, COLOR_0, 0, font_width, font_height, (Uint8 *)(image_buf) + (i * font_size));
     }
 
+    total_sprites += font_num;
     cd_load(owsprite_name, image_buf, owsprite_size * owsprite_num);
     for (i = 0; i < owsprite_num; i++) {
-        SPR_2SetChar(i + font_num, COLOR_0, 16, owsprite_width, owsprite_height, (Uint8 *)(image_buf) + (i * owsprite_size));
+        SPR_2SetChar(i + total_sprites, COLOR_0, 16, owsprite_width, owsprite_height, (Uint8 *)(image_buf) + (i * owsprite_size));
     }
+
+    total_sprites += owsprite_num;
     cd_load(bsprite_name, image_buf, bsprite_size * bsprite_num);
-    
     for (i = 0; i < bsprite_num; i++) {
-        SPR_2SetChar(i + font_num + owsprite_num, COLOR_0, 32, bsprite_width, bsprite_height, (Uint8 *)(image_buf) + (i * bsprite_size));
+        SPR_2SetChar(i + total_sprites, COLOR_0, 32, bsprite_width, bsprite_height, (Uint8 *)(image_buf) + (i * bsprite_size));
     }
+
+    total_sprites += bsprite_num;
+    enemySpriteStart = total_sprites;
+   
 
     // SPR_2SetChar(0, COLOR_0, 0, owsprite_width, owsprite_height, (Uint8 *)(image_buf) + 256);
     SCL_AllocColRam(SCL_SPR, 16, OFF);
     SCL_SetColRam(SCL_SPR, 0, 16, &font_pal);
     SCL_SetColRam(SCL_SPR, 16, 16, &owsprite_pal);
     SCL_SetColRam(SCL_SPR, 32, 16, &bsprite_pal);
+    enemyCramStart = 48; 
+
     sprite_deleteall();
     SCL_DisplayFrame();
 }
@@ -168,5 +191,25 @@ void sprite_deleteall() {
         sprites[i].options = OPTION_NODISP;
     }
     num_sprites = 0;
+}
+
+void initSmallEnemySprites(char *sprite_name, Uint16 cramValue, Uint16 startPos) {
+    int i = 0;
+
+    cd_load(sprite_name, image_buf, small_enemy_size * small_enemy_num);
+    for (i = 0; i < small_enemy_num; i++) {
+        SPR_2SetChar(i + startPos, COLOR_0, cramValue, small_enemy_width, small_enemy_height, (Uint8 *)(image_buf) + (i * small_enemy_size));
+    }
+    total_sprites = startPos + small_enemy_num;
+
+}
+
+void initLargeEnemySprites(char *sprite_name, Uint16 cramValue, Uint16 startPos) {
+    int i = 0;
+    cd_load(sprite_name, image_buf, large_enemy_size * large_enemy_num);
+    for (i = 0; i < large_enemy_num; i++) {
+        SPR_2SetChar(i + startPos, COLOR_0, cramValue, large_enemy_width, large_enemy_height, (Uint8 *)(image_buf) + (i * large_enemy_size));
+    }
+    total_sprites = startPos + large_enemy_num;
 }
 

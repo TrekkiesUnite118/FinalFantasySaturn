@@ -429,10 +429,10 @@ void player_bat_draw() {
     memcpy(&temp2, &playerBat2, sizeof(temp2));
     memcpy(&temp3, &playerBat3, sizeof(temp3));
     memcpy(&temp4, &playerBat4, sizeof(temp4));
-    sprite_draw(&playerBat1);
-    sprite_draw(&playerBat2);
-    sprite_draw(&playerBat3);
-    sprite_draw(&playerBat4);
+    sprite_draw(&temp1);
+    sprite_draw(&temp2);
+    sprite_draw(&temp3);
+    sprite_draw(&temp4);
 
     print_string(party[0].name, 4, 29, 6);
     print_string("HP", 6, 29, 2);

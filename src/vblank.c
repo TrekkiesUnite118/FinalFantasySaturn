@@ -15,7 +15,7 @@
 #include    <sega_spr.h>
 #include    <sega_scl.h>
 #include    <sega_xpt.h>
-#include     <sega_int.h>
+#include    <sega_int.h>
 #include    "per_x.h"
 #include    "scroll.h"
 
@@ -23,6 +23,7 @@ volatile trigger_t    PadData1  = 0x0000;
 volatile trigger_t    PadData1E = 0x0000;
 volatile trigger_t    PadData2  = 0x0000;
 volatile trigger_t    PadData2E = 0x0000;
+
 SysPort    *__port = NULL;
 void UsrVblankIn(void);
 void UsrVblankOut(void);
@@ -48,7 +49,6 @@ void UsrVblankOut(void) {
     
     if( __port != NULL ){
         const SysDevice    *device;
-        
         PER_GetPort( __port );
         
         if(( device = PER_GetDeviceR( &__port[0], 0 )) != NULL ){

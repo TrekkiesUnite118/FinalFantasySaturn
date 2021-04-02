@@ -1,10 +1,18 @@
 #ifndef BATTLE_H
 #define BATTLE_H
 #include "datatypes.h"
-#include "sprite.h"
 
 #include <sega_def.h>
 #include <sega_mth.h>
+#include <sega_per.h>
+#include "sprite.h"
+#include "graphicrefs.h"
+
+#define BATTLE_TYPE_3X3 (MTH_FIXED(0x00))
+#define BATTLE_TYPE_2X2 (MTH_FIXED(0x01))
+#define BATTLE_TYPE_MIX (MTH_FIXED(0x02))
+#define BATTLE_TYPE_FIEND (MTH_FIXED(0x03))
+#define BATTLE_TYPE_CHAOS (MTH_FIXED(0x04))
 
 typedef struct {
     Uint8 isFormation2;
@@ -46,21 +54,34 @@ typedef struct {
     Uint8 mag_def;
     Uint8 elem_weak;
     Uint8 elem_resist;
-    char name[8];
+    Uint8 pic_num;
+    Uint8 pal_num;
 } ENEMY_DATA;
 
-ENEMY_DATA enemies[4];
+ENEMY_DATA enemies[9];
 
 BATTLE_DATA battle;
 
 void battle_init(int id);
 
-void parseEnemyName(ENEMY_DATA *enemy, int id);
+void parseEnemyName(char *enemy, int id);
 
-void parseEnemyData(ENEMY_DATA *enemy, int id);
+void parseEnemyData(ENEMY_DATA *enemy, int id, int picNum, int palNum);
 
 void parseBattleData(BATTLE_DATA *battle, int id);
 
+void parseBattleGroup(int numOfEnemies, int picNum, int palNum, int enemyId);
+
 void enemy_bat_draw(void);
+
+Uint8 rand_min_max(int min, int max);
+
+Uint8 battleRNG(void);
+
+void setRngSeed(void);
+
+void initPalette(Uint32 *palette, Uint8 pal_id);
+
+void createEnemySprite(SPRITE_INFO *enemySprite, int enemy_num, int xPos, int yPos) ;
 
 #endif
