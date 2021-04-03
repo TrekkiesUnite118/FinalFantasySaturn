@@ -41,6 +41,7 @@ typedef struct SpriteInfo {
 } SPRITE_INFO;
 
 Uint16 total_sprites;
+Uint16 cursorSpriteIndex;
 Uint16 enemySpriteStart;
 Uint16 enemyCramStart;
 

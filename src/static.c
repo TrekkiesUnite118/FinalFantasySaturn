@@ -141,3 +141,24 @@ void static_disable() {
     nbg1Scfg.dispenbl      = OFF;
     SCL_SetConfig(SCL_NBG1, &nbg1Scfg);
 }
+
+void update_static(STATIC_SCREEN *screen) {
+    
+    Uint16 *TilemapVram = (Uint8 *)SCL_VDP2_VRAM_A0;
+    cd_load(screen->bg.map_name, lwram_ptr, (screen->bg.map_width * screen->bg.map_height) * 2);
+    int tileHPos = 0;
+    int lwramPos = 0;
+    for (int i = 0; i < 64 * 64; i++) {
+        if(tileHPos < 40) {
+            TilemapVram[i] = lwram_ptr[lwramPos];
+            lwramPos++;
+        } else {
+            TilemapVram[i] = 0;
+        }
+        
+        tileHPos++;
+        if(tileHPos == 64) {
+            tileHPos = 0;
+        }
+    }
+}

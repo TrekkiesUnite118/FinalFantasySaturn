@@ -7,6 +7,10 @@
 extern Uint16 owmap_num;
 extern char owmap_name[];
 extern Uint32 owmap_pal[];
+//menu.c
+extern Uint16 menu_num;
+extern char menu_name[];
+extern Uint32 menu_pal[];
 //bTiles.c
 extern Uint16 bTiles_num;
 extern char bTiles_name[];
@@ -79,8 +83,27 @@ extern Uint32 waterfall_pal[];
 extern Uint16 bMap_width;
 extern Uint16 bMap_height;
 extern char bMap_name[];
+//title.c
+extern Uint16 title_width;
+extern Uint16 title_height;
+extern char title_name[];
+//bMap.c
+extern Uint16 cselect_width;
+extern Uint16 cselect_height;
+extern char cselect_name[];
+//bMap.c
+extern Uint16 cname_width;
+extern Uint16 cname_height;
+extern char cname_name[];
 
 //---sprite graphics---
+//font.c
+extern Uint16 cursor_num;
+extern Uint16 cursor_size;
+extern Uint16 cursor_width;
+extern Uint16 cursor_height;
+extern char cursor_name[];
+extern Uint32 cursor_pal[];
 //font.c
 extern Uint16 font_num;
 extern Uint16 font_size;

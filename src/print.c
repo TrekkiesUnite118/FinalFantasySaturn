@@ -34,7 +34,9 @@ void print_hp_num(Uint32 num, int row, int col) {
     int numOfDigits = 2;
     if(num < 100) {
         numOfDigits = 1;
-    } else if(num < 10) {
+    }
+    
+    if(num < 10) {
         numOfDigits = 0;
     }
 

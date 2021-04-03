@@ -31,6 +31,12 @@
     extern volatile trigger_t    PadData1E;
     extern volatile trigger_t    PadData2;
     extern volatile trigger_t    PadData2E;
+
+    
+    Uint8 canMoveCursor;
+    Uint8 canUpdateValue;
+    int frame_count_a;
+    int frame_count_b;
     
     /****************************************
     *            declare functions            *

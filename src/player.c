@@ -61,6 +61,24 @@
 #define FRAME_WALK3 (FRAME_STAND + 6)
 #define FRAME_WALK4 (FRAME_STAND + 7)
 
+#define NEW_GAME_POS (MTH_FIXED(81))
+#define CONTINUE_POS (MTH_FIXED(121))
+
+#define SELECT_1_POS_X (MTH_FIXED(80))
+#define SELECT_1_POS_Y (MTH_FIXED(55))
+#define SELECT_2_POS_X (MTH_FIXED(192))
+#define SELECT_2_POS_Y (MTH_FIXED(55))
+#define SELECT_3_POS_X (MTH_FIXED(80))
+#define SELECT_3_POS_Y (MTH_FIXED(143))
+#define SELECT_4_POS_X (MTH_FIXED(192))
+#define SELECT_4_POS_Y (MTH_FIXED(143))
+
+#define NAME_LETTER_MIN_X (MTH_FIXED(64))
+#define NAME_LETTER_MIN_Y (MTH_FIXED(71))
+
+#define NAME_LETTER_MAX_X (MTH_FIXED(208))
+#define NAME_LETTER_MAX_Y (MTH_FIXED(183))
+
 const int START_POS_X = 153;
 const int START_POS_Y = 165;
 
@@ -73,6 +91,7 @@ int forest = IN_FOREST;
 
 SPRITE_INFO player;
 SPRITE_INFO playerb;
+SPRITE_INFO cursor;
 
 
 SPRITE_INFO playerBat1;
@@ -80,9 +99,15 @@ SPRITE_INFO playerBat2;
 SPRITE_INFO playerBat3;
 SPRITE_INFO playerBat4;
 
+SPRITE_INFO playerSel1;
+SPRITE_INFO playerSel2;
+SPRITE_INFO playerSel3;
+SPRITE_INFO playerSel4;
+
 Uint8 isMoving = 0;
 Uint8 totalMovement = 0;
 Uint8 changeToBat = 0;
+Uint8 responseRate = 1;
 
 int direction = DOWN;
 int currentChar = WARRIOR_OFFSET;
@@ -90,6 +115,111 @@ int currentBattleState = 0;
 
 Uint16 MIRROR_ANIM_1 = MIRROR_HORIZ;
 Uint16 MIRROR_ANIM_2 = MIRROR_HORIZ;
+
+char selectName1[7] = "FIGHTER ";
+char selectName2[7] = "THIEF   ";
+char selectName3[7] = "Bl.BELT ";
+char selectName4[7] = "RedMAGE ";
+char selectName5[7] = "Wh.MAGE ";
+char selectName6[7] = "Bl.MAGE ";
+
+char *classNames[6] = {&selectName1, &selectName2, &selectName3, &selectName4, &selectName5, &selectName6};
+
+int cur_char_create = 0;
+int cur_letter = 0;
+int cur_letter_index = 0;
+char nameBuffer[6] = "      ";
+int selected_class = 0;
+
+int ignoreA = 0;
+int ignoreB = 0;
+int ignoreC = 0;
+int ignoreX = 0;
+int ignoreY = 0;
+int ignoreZ = 0;
+
+char char_name_screen_lookup_table[70] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
+                      'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
+                      'U', 'V', 'W', 'X', 'Y', 'Z', '\'', ',', '.', ' ',
+                      '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+                      'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
+                      'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
+                      'u', 'v', 'w', 'x', 'y', 'z', '-', '"', '!', '?'};
+
+
+
+void player_cursor_init(Fixed32 startX, Fixed32 startY) {
+
+    if(state == TO_CHAR_SELECT_STATE) {
+        if(cur_char_create == 0) {
+            startX = SELECT_1_POS_X;
+            startY = SELECT_1_POS_Y;
+        } else if(cur_char_create == 1) {
+            startX = SELECT_2_POS_X;
+            startY = SELECT_2_POS_Y;
+        } else if(cur_char_create == 2) {
+            startX = SELECT_3_POS_X;
+            startY = SELECT_3_POS_Y;
+        } else if(cur_char_create == 3) {
+            startX = SELECT_4_POS_X;
+            startY = SELECT_4_POS_Y;
+        }
+    }
+
+    sprite_make(cursorSpriteIndex,  startX,  startY, &cursor);
+    player.xSize = MTH_FIXED(16);
+    player.ySize = MTH_FIXED(16);
+    
+}
+
+
+void player_select_init(){
+    sprite_make(144 + (party[0].char_class * 6),  MTH_FIXED(96),  MTH_FIXED(56), &playerSel1);
+    sprite_make(144 + (party[1].char_class * 6),  MTH_FIXED(208),  MTH_FIXED(56), &playerSel2);
+    sprite_make(144 + (party[2].char_class * 6),  MTH_FIXED(96),  MTH_FIXED(152), &playerSel3);
+    sprite_make(144 + (party[3].char_class * 6),  MTH_FIXED(208),  MTH_FIXED(152), &playerSel4);
+
+    playerSel1.xSize = MTH_FIXED(16);
+    playerSel1.ySize = MTH_FIXED(24);
+    playerSel2.xSize = MTH_FIXED(16);
+    playerSel2.ySize = MTH_FIXED(24);
+    playerSel3.xSize = MTH_FIXED(16);
+    playerSel3.ySize = MTH_FIXED(24);
+    playerSel4.xSize = MTH_FIXED(16);
+    playerSel4.ySize = MTH_FIXED(24);
+
+}
+
+void player_cursor_draw() {
+    SPRITE_INFO temp;
+    memcpy(&temp, &cursor, sizeof(temp));;
+
+    sprite_draw(&temp);
+}
+
+void draw_response_rate() {
+     print_hp_num(responseRate, 21, 24);
+}
+
+void draw_char_name() {
+     print_string(nameBuffer, 3, 17, 6);
+}
+
+void player_select_draw() {
+    playerSel1.char_num = 144 + (party[0].char_class * 6);
+    playerSel2.char_num = 144 + (party[1].char_class * 6);
+    playerSel3.char_num = 144 + (party[2].char_class * 6);
+    playerSel4.char_num = 144 + (party[3].char_class * 6);
+    sprite_draw(&playerSel1);
+    sprite_draw(&playerSel2);
+    sprite_draw(&playerSel3);
+    sprite_draw(&playerSel4);
+
+    print_string(classNames[party[0].char_class], 5, 9, 7);
+    print_string(classNames[party[1].char_class], 5, 23, 7);
+    print_string(classNames[party[2].char_class], 17, 9, 7);
+    print_string(classNames[party[3].char_class], 17, 23, 7);
+}
 
 void player_ow_init(Fixed32 startX, Fixed32 startY) {
     sprite_make(FRAME_STAND + currentChar,  startX,  startY, &player);
@@ -125,7 +255,7 @@ void player_bat_init(Fixed32 startX, Fixed32 startY) {
     
 }
 
-void char_init(int classValue, int partyNum, char newName[4]) {
+void char_init(int classValue, int partyNum, char newName[6]) {
 
     int startingStatOffset;
     PLAYER_CHARACTER character;
@@ -222,23 +352,118 @@ void player_input() {
         SYS_Exit(0);
     }
 
-    if (PadData1 & PAD_A) {    
+    if(!(PadData1 & PAD_A)) {
+        ignoreA = 0;
+    }
+    if(!(PadData1 & PAD_B)) {
+        ignoreB = 0;
+    }
+    if(!(PadData1 & PAD_C)) {
+        ignoreC = 0;
+    }
+    
+
+    if (PadData1 & PAD_A && !ignoreA) {    
 
         if(state == OW_STATE) {
             currentChar = WARRIOR_OFFSET;
         } else if(state == BAT_STATE) {
             state = TO_OW_STATE;
+        } else if(state == TITLE_STATE) {
+            state = TO_CHAR_SELECT_STATE;
+        } else if(state == CHAR_SELECT_STATE) {
+            if(cur_char_create == 4) {
+                state = TO_OW_STATE;
+            } else {
+                state = TO_CHAR_NAME_STATE;
+                 selected_class = party[cur_char_create].char_class;
+            }
+        }  else if(state == CHAR_NAME_STATE) {
+            nameBuffer[cur_letter_index] = char_name_screen_lookup_table[cur_letter];
+
+            cur_letter_index++;
+            if(cur_letter_index > 6) {
+                selected_class = party[cur_char_create].char_class;
+                char_init(selected_class, cur_char_create, nameBuffer);
+                               
+                cur_char_create++;
+                nameBuffer[0] = ' ';
+                nameBuffer[1] = ' ';
+                nameBuffer[2] = ' ';
+                nameBuffer[3] = ' ';
+                nameBuffer[4] = ' ';
+                nameBuffer[5] = ' ';
+                cur_letter_index = 0;
+                cur_letter = 0;
+                state = TO_CHAR_SELECT_STATE;
+            }
         }
+        ignoreA = 1;
         
     }
-    if (PadData1 & PAD_B) {    
+    if (PadData1 & PAD_B && !ignoreB) {    
 
-        currentChar = THIEF_OFFSET;
+        if(state == CHAR_NAME_STATE) {
+            if(cur_letter_index == 0) {
+                state = TO_CHAR_SELECT_STATE;
+            }
+            cur_letter_index--;
+            nameBuffer[cur_letter_index] = ' ';
+            
+        } else if(state == CHAR_SELECT_STATE) {
+            cur_char_create--;
+            selected_class = party[cur_char_create].char_class;
+            cur_letter = 0;
+            if(cur_char_create == 0) {
+                cursor.xPos = SELECT_1_POS_X;
+                cursor.yPos = SELECT_1_POS_Y;
+            } else if(cur_char_create == 1) {
+                cursor.xPos = SELECT_2_POS_X;
+                cursor.yPos = SELECT_2_POS_Y;
+            } else if(cur_char_create == 2) {
+                cursor.xPos = SELECT_3_POS_X;
+                cursor.yPos = SELECT_3_POS_Y;
+            } else if(cur_char_create == 3) {
+                cursor.xPos = SELECT_4_POS_X;
+                cursor.yPos = SELECT_4_POS_Y;
+            }
+    
+        }
+        ignoreB = 1;
         
     }
-    if (PadData1 & PAD_C) {    
+    if (PadData1 & PAD_C && !ignoreC) {    
 
-        currentChar = MONK_OFFSET;
+        if(state == TITLE_STATE) {
+            state = TO_CHAR_SELECT_STATE;
+        } else if(state == CHAR_SELECT_STATE) {
+           if(cur_char_create == 4) {
+                state = TO_OW_STATE;
+            } else {
+                state = TO_CHAR_NAME_STATE;
+                selected_class = party[cur_char_create].char_class;
+            }
+        }  else if(state == CHAR_NAME_STATE) {
+            nameBuffer[cur_letter_index] = char_name_screen_lookup_table[cur_letter];
+
+            cur_letter_index++;
+            if(cur_letter_index > 6) {
+                selected_class = party[cur_char_create].char_class;
+                char_init(selected_class, cur_char_create, nameBuffer);
+              
+                cur_char_create++;
+                nameBuffer[0] = ' ';
+                nameBuffer[1] = ' ';
+                nameBuffer[2] = ' ';
+                nameBuffer[3] = ' ';
+                nameBuffer[4] = ' ';
+                nameBuffer[5] = ' ';
+                cur_letter_index = 0;
+                cur_letter = 0;
+                state = TO_CHAR_SELECT_STATE;
+            }
+        }
+        ignoreC = 1;
         
     }
     if (PadData1 & PAD_X) {    
@@ -259,112 +484,211 @@ void player_input() {
 
     if (PadData1 & PAD_L) {    
     
-        if(!isMoving && canMove(LEFT)){
-            if(player.char_num == FRAME_STAND + currentChar || player.char_num == FRAME_STAND2 + currentChar){    
-                player.char_num = FRAME_STAND3 + currentChar;
-                playerb.char_num = FRAME_STAND4 + currentChar;
+        if(state == OW_STATE) {
+            if(!isMoving && canMove(LEFT)){
+                if(player.char_num == FRAME_STAND + currentChar || player.char_num == FRAME_STAND2 + currentChar){    
+                    player.char_num = FRAME_STAND3 + currentChar;
+                    playerb.char_num = FRAME_STAND4 + currentChar;
+                }
+                direction = LEFT;
+                current_x_pos--;
+                if(current_x_pos == -1){
+                    current_x_pos = 255;
+                }
+                isMoving = 1;
+                player.mirror &= ~MIRROR_HORIZ;
+                playerb.mirror &= ~MIRROR_HORIZ;
             }
-            direction = LEFT;
-            current_x_pos--;
-            if(current_x_pos == -1){
-                current_x_pos = 255;
+        } else if(state == TITLE_STATE) {
+            if(!canUpdateValue){
+                if(responseRate > 1) {
+                frame_count_a = 0;
+                    responseRate--;
+                    canUpdateValue = 1;
+                }
             }
-            isMoving = 1;
-            player.mirror &= ~MIRROR_HORIZ;
-            playerb.mirror &= ~MIRROR_HORIZ;
+        } else if(state == CHAR_SELECT_STATE) {
+            if(!canUpdateValue){
+                if(party[cur_char_create].char_class == 0) {
+                    party[cur_char_create].char_class = 5;
+                    selected_class = 5;
+                } else {
+                    party[cur_char_create].char_class--;
+                    selected_class--;
+                }
+                frame_count_a = 0;
+                canUpdateValue = 1;
+                
+            }
+        } else if(state == CHAR_NAME_STATE) {
+            if(!canMoveCursor){
+                if(cursor.xPos > NAME_LETTER_MIN_X) {
+                    cur_letter--;
+                    cursor.xPos -= MTH_FIXED(16);
+                }
+                frame_count_b = 0;
+                canMoveCursor = 1;
+            }
         }
 
     }
     else if (PadData1 & PAD_R) {
 
-        if(!isMoving && canMove(RIGHT)){
-            if(player.char_num == FRAME_STAND  + currentChar|| player.char_num == FRAME_STAND2 + currentChar){    
-                player.char_num = FRAME_STAND3 + currentChar;
-                playerb.char_num = FRAME_STAND4 + currentChar;
+        if(state == OW_STATE) {
+            if(!isMoving && canMove(RIGHT)){
+                if(player.char_num == FRAME_STAND  + currentChar|| player.char_num == FRAME_STAND2 + currentChar){    
+                    player.char_num = FRAME_STAND3 + currentChar;
+                    playerb.char_num = FRAME_STAND4 + currentChar;
+                }
+                direction = RIGHT;
+                current_x_pos++;
+                
+                if(current_x_pos == 256){
+                    current_x_pos = 0;
+                }
+                isMoving = 1;
+                player.mirror = MIRROR_HORIZ;
+                playerb.mirror = MIRROR_HORIZ;
+                
             }
-            direction = RIGHT;
-            current_x_pos++;
-            
-            if(current_x_pos == 256){
-                current_x_pos = 0;
+        } else if(state == TITLE_STATE) {
+            if(!canUpdateValue){
+                if(responseRate < 8) {
+                    frame_count_a = 0;
+                    responseRate++;
+                    canUpdateValue = 1;
+                }
             }
-            isMoving = 1;
-            player.mirror = MIRROR_HORIZ;
-            playerb.mirror = MIRROR_HORIZ;
-            
+        } else if(state == CHAR_SELECT_STATE) {
+            if(!canUpdateValue){
+                if(party[cur_char_create].char_class == 5) {
+                    party[cur_char_create].char_class = 0;
+                    selected_class = 0;
+                } else {
+                    party[cur_char_create].char_class++;
+                    selected_class++;
+                }
+                frame_count_a = 0;
+                canUpdateValue = 1;
+                
+            }
+        } else if(state == CHAR_NAME_STATE) {
+            if(!canMoveCursor){
+                if(cursor.xPos < NAME_LETTER_MAX_X) {
+                    cur_letter++;
+                    cursor.xPos += MTH_FIXED(16);
+                }
+                frame_count_b = 0;
+                canMoveCursor = 1;
+            }
         }
 
     }
     else if (PadData1 & PAD_D) {
     
-        if(!isMoving && canMove(DOWN)){
-            player.char_num = FRAME_STAND + currentChar;
-            playerb.char_num = FRAME_WALK1 + currentChar;
-            current_y_pos++;
-            
-            if(current_y_pos == 256){
-                current_y_pos = 0;
+        if(state == OW_STATE) {
+            if(!isMoving && canMove(DOWN)){
+                player.char_num = FRAME_STAND + currentChar;
+                playerb.char_num = FRAME_WALK1 + currentChar;
+                current_y_pos++;
+                
+                if(current_y_pos == 256){
+                    current_y_pos = 0;
+                }
+                direction = DOWN;
+                isMoving = 1;            
+                player.mirror &= ~MIRROR_HORIZ;
             }
-            direction = DOWN;
-            isMoving = 1;            
-            player.mirror &= ~MIRROR_HORIZ;
+        } else if(state == TITLE_STATE) {
+            if(!canMoveCursor) {
+                frame_count_b = 0;
+                cursor.yPos = CONTINUE_POS;
+                canMoveCursor = 1;
+            }
+        } else if(state == CHAR_NAME_STATE) {
+            if(!canMoveCursor){
+                if(cursor.yPos < NAME_LETTER_MAX_Y) {
+                    cur_letter+= 10;
+                    cursor.yPos += MTH_FIXED(16);
+                }
+                frame_count_b = 0;
+                canMoveCursor = 1;
+            }
         }
         
     }
     else if (PadData1 & PAD_U) {
         
-        if(!isMoving && canMove(UP)){
-            player.char_num = FRAME_STAND2 + currentChar;
-            playerb.char_num = FRAME_WALK2 + currentChar;
-            current_y_pos--;
-            
-            if(current_y_pos == -1){
-                current_y_pos = 255;
+        if(state == OW_STATE) {
+            if(!isMoving && canMove(UP)){
+                player.char_num = FRAME_STAND2 + currentChar;
+                playerb.char_num = FRAME_WALK2 + currentChar;
+                current_y_pos--;
+                
+                if(current_y_pos == -1){
+                    current_y_pos = 255;
+                }
+                direction = UP;
+                isMoving = 1;    
+                player.mirror &= ~MIRROR_HORIZ;
+                
             }
-            direction = UP;
-            isMoving = 1;    
-            player.mirror &= ~MIRROR_HORIZ;
-            
+        } else if(state == TITLE_STATE) {
+            if(!canMoveCursor) {
+                frame_count_b = 0;
+                canMoveCursor = 1; 
+                cursor.yPos = NEW_GAME_POS;
+            }
+        } else if(state == CHAR_NAME_STATE) {
+            if(!canMoveCursor){
+                if(cursor.yPos > NAME_LETTER_MIN_Y) {
+                    cur_letter -= 10;
+                    cursor.yPos -= MTH_FIXED(16);
+                }
+                    frame_count_b = 0;
+                    canMoveCursor = 1;
+            }
+        }  
+    }
+
+    if(state == OW_STATE) {
+        if(isMoving) {
+            switch(direction) {
+                case LEFT:
+                    player.dy =  MTH_FIXED(0);
+                    playerb.dy =  MTH_FIXED(0);
+                    movePlayerLeft();
+                    break;
+                case RIGHT:
+                    player.dy =  MTH_FIXED(0);
+                    playerb.dy =  MTH_FIXED(0);
+                    movePlayerRight();
+                    break;
+                case UP:
+                    movePlayerUp();
+                    player.dx =  MTH_FIXED(0);
+                    playerb.dx =  MTH_FIXED(0);
+                    break;
+                case DOWN:
+                    movePlayerDown();
+                    player.dx =  MTH_FIXED(0);
+                    playerb.dx =  MTH_FIXED(0);
+                    break;
+                default:
+                    break;
+            }            
+        } else {
+            player.dy =  MTH_FIXED(0);
+            playerb.dy =  MTH_FIXED(0);
+            player.dx =  MTH_FIXED(0);
+            playerb.dx =  MTH_FIXED(0);
         }
-        
-    }
 
-    if(isMoving) {
-        switch(direction) {
-            case LEFT:
-                player.dy =  MTH_FIXED(0);
-                playerb.dy =  MTH_FIXED(0);
-                movePlayerLeft();
-                break;
-            case RIGHT:
-                player.dy =  MTH_FIXED(0);
-                playerb.dy =  MTH_FIXED(0);
-                movePlayerRight();
-                break;
-            case UP:
-                movePlayerUp();
-                player.dx =  MTH_FIXED(0);
-                playerb.dx =  MTH_FIXED(0);
-                break;
-            case DOWN:
-                movePlayerDown();
-                player.dx =  MTH_FIXED(0);
-                playerb.dx =  MTH_FIXED(0);
-                break;
-            default:
-                break;
-        }            
-    } else {
-        player.dy =  MTH_FIXED(0);
-        playerb.dy =  MTH_FIXED(0);
-        player.dx =  MTH_FIXED(0);
-        playerb.dx =  MTH_FIXED(0);
+        player.xPos += player.dx;
+        playerb.xPos += playerb.dx;
+        player.yPos += player.dy;
+        playerb.yPos += playerb.dy;
     }
-
-    player.xPos += player.dx;
-    playerb.xPos += playerb.dx;
-    player.yPos += player.dy;
-    playerb.yPos += playerb.dy;
 }
 
 void player_animate() {
@@ -445,7 +769,7 @@ void player_bat_draw() {
     print_hp_num(party[2].current_hp, 19, 30);
     print_string(party[3].name, 22, 29, 6);
     print_string("HP", 24, 29, 2);
-    print_hp_num(party[2].current_hp, 25, 30);
+    print_hp_num(party[3].current_hp, 25, 30);
     
 }
 

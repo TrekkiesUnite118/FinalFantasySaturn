@@ -75,6 +75,12 @@ void sprite_init() {
     }
 
     total_sprites += bsprite_num;
+    cursorSpriteIndex = total_sprites;
+    cd_load(cursor_name, image_buf, cursor_size * cursor_num);
+    for (i = 0; i < cursor_num; i++) {
+        SPR_2SetChar(i + total_sprites, COLOR_0, 48, cursor_width, cursor_height, (Uint8 *)(image_buf) + (i * cursor_size));
+    }
+    total_sprites += cursor_num;
     enemySpriteStart = total_sprites;
    
 
@@ -83,7 +89,8 @@ void sprite_init() {
     SCL_SetColRam(SCL_SPR, 0, 16, &font_pal);
     SCL_SetColRam(SCL_SPR, 16, 16, &owsprite_pal);
     SCL_SetColRam(SCL_SPR, 32, 16, &bsprite_pal);
-    enemyCramStart = 48; 
+    SCL_SetColRam(SCL_SPR, 48, 16, &cursor_pal);
+    enemyCramStart = 64; 
 
     sprite_deleteall();
     SCL_DisplayFrame();

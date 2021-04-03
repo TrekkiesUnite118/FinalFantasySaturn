@@ -50,33 +50,34 @@ int main() {
     int sound_inited = 0;
     cd_init();
     cd_load("FFANTASY.BIN", (void *)LWRAM, 262160);
-    state = TO_OW_STATE;
+    state = TO_TITLE_STATE;
     sprite_init();
     overworld_init();
-
-    //The original game relied on the randomness of NES RAM on 
-    //Power On. The Saturn clears it's RAM on start up, so to
-    //try and mimick the NES behavior I'm getting the 
-    //seconds value from the RTC.
+    
+    char name1[6] = "      ";
+    char name2[6] = "      ";
+    char name3[6] = "      ";
+    char name4[6] = "      ";
+    char_init(0, 0, name1);
+    char_init(1, 1, name2);
+    char_init(2, 2, name3);
+    char_init(3, 3, name4);
     
     LEVEL level1;
     STATIC_SCREEN battleScreen;
+    STATIC_SCREEN titleScreen;
+    STATIC_SCREEN charSelectScreen;
+    STATIC_SCREEN charNameScreen;
     level1.player_startx = MTH_FIXED(2296);
     level1.player_starty = MTH_FIXED(2545);
 
     print_init();
     player_ow_init(level1.player_startx, level1.player_starty);
-    char name1[6] = "TREKKY";
-    char name2[6] = "PONUT ";
-    char name3[6] = "XL2   ";
-    char name4[6] = "VBT   ";
-    char_init(0, 0, name1);
-    char_init(1, 1, name2);
-    char_init(4, 2, name3);
-    char_init(5, 3, name4);
-
-    player_bat_init(MTH_FIXED(200), MTH_FIXED(40));
     
+    //The original game relied on the randomness of NES RAM on 
+    //Power On. The Saturn clears it's RAM on start up, so to
+    //try and mimick the NES behavior I'm getting the 
+    //seconds value from the RTC.
     SCL_SetSpriteMode(SCL_TYPE5,SCL_MIX,SCL_SP_WINDOW);
     setRngSeed();
 
@@ -87,9 +88,45 @@ int main() {
        
         SPR_2OpenCommand(SPR_2DRAW_PRTY_OFF);
         switch(state) {
+            case TO_TITLE_STATE:
+                static_screen_init((&titleScreen.bg), menu_name, menu_num, menu_pal, title_name, title_width, title_height);
+                static_init(&titleScreen);
+                sound_init();
+                if(!sound_inited) {
+                    sound_init();
+                    sound_inited = 1;
+                }
+                print_init();
+                player_cursor_init(MTH_FIXED(104), MTH_FIXED(81));
+                sound_cdda(2);
+                player_cursor_draw();
+                draw_response_rate();
+                state = TITLE_STATE;
+                break;
+            case TO_CHAR_SELECT_STATE:
+                sprite_deleteall();
+                static_screen_init((&charSelectScreen.bg), menu_name, menu_num, menu_pal, cselect_name, cselect_width, cselect_height);
+                update_static(&charSelectScreen);
+                print_init();
+                player_cursor_init(MTH_FIXED(80), MTH_FIXED(55));
+                sound_cdda(2);
+                player_select_init();
+
+                state = CHAR_SELECT_STATE;
+                break;
+            case TO_CHAR_NAME_STATE: 
+                sprite_deleteall();    
+                static_screen_init((&charNameScreen.bg), menu_name, menu_num, menu_pal, cname_name, cname_width, cname_height);
+                update_static(&charNameScreen);
+                print_init();
+                player_cursor_init(MTH_FIXED(64), MTH_FIXED(71));
+                sound_cdda(2);
+                state = CHAR_NAME_STATE;
+                break;
             case TO_OW_STATE:
-                
+                sprite_deleteall();
                 static_disable();
+                print_init();
                 ow_layer_init(&(level1.bg_far), owmap_name, owmap_num, owmap_pal, mapPlane, 256, 256);
                 scroll_init(&level1);
                 if(!sound_inited) {
@@ -100,8 +137,9 @@ int main() {
                 state = OW_STATE;
                 break;
             case TO_BAT_STATE:
+                sprite_deleteall();
                 scroll_disable();
-                
+                print_init();
                 switch(currentBackDrop) {
                     case GRASS_BACKDROP:
                         static_screen_init((&battleScreen.bg), grass_name, grass_num, grass_pal, bMap_name, bMap_width, bMap_height);
@@ -158,11 +196,27 @@ int main() {
 
                 static_init(&battleScreen);
                 
+                player_bat_init(MTH_FIXED(200), MTH_FIXED(40));
                 sound_cdda(4);
                 state = BAT_STATE;
                 break;
             case OW_STATE:
                 player_ow_draw();
+                break;
+            case TITLE_STATE:
+                player_cursor_draw();
+                draw_response_rate();
+                print_display();
+                break;
+            case CHAR_SELECT_STATE:
+                player_cursor_draw();
+                player_select_draw();
+                print_display();
+                break;
+            case CHAR_NAME_STATE:
+                player_cursor_draw();
+                draw_char_name();
+                print_display();
                 break;
             case BAT_STATE:
                 player_bat_draw();

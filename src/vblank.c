@@ -18,6 +18,7 @@
 #include    <sega_int.h>
 #include    "per_x.h"
 #include    "scroll.h"
+#include    "vblank.h"
 
 volatile trigger_t    PadData1  = 0x0000;
 volatile trigger_t    PadData1E = 0x0000;
@@ -28,8 +29,12 @@ SysPort    *__port = NULL;
 void UsrVblankIn(void);
 void UsrVblankOut(void);
 
+frame_count_a = 0;
+frame_count_b = 0;
+
 void SetVblank(void) {
-    
+    canUpdateValue = 0;
+    canMoveCursor = 0;
     __port = PER_OpenPort();
     
     /* V-BlankäÑÇËçûÇ›ÉãÅ[É`ÉìÇÃìoò^ */
@@ -46,6 +51,16 @@ void UsrVblankIn(void) {
 
 void UsrVblankOut(void) {
     SCL_VblankEnd();
+    frame_count_a++;
+    frame_count_b++;
+    if(frame_count_a == 8) {
+        canUpdateValue = 0;
+        frame_count_a = 0;
+    }
+     if(frame_count_b == 8) {
+        canMoveCursor = 0;
+        frame_count_b = 0;
+    }
     
     if( __port != NULL ){
         const SysDevice    *device;

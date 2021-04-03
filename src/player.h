@@ -15,6 +15,12 @@ extern SPRITE_INFO playerb;
 #define TO_BAT_STATE (MTH_FIXED(0x02))
 #define BAT_STATE (MTH_FIXED(0x03))
 #define TO_OW_STATE (MTH_FIXED(0x04))
+#define TITLE_STATE (MTH_FIXED(0x05))
+#define CHAR_SELECT_STATE (MTH_FIXED(0x06))
+#define CHAR_NAME_STATE (MTH_FIXED(0x07))
+#define TO_TITLE_STATE (MTH_FIXED(0x08))
+#define TO_CHAR_SELECT_STATE (MTH_FIXED(0x09))
+#define TO_CHAR_NAME_STATE (MTH_FIXED(0x0A))
 
 typedef struct {
     Uint8 isAlive; //Is the character alive?
@@ -49,13 +55,20 @@ PLAYER_CHARACTER party[4];
 int state;
 int currentBackDrop;
 
-
+void player_cursor_init(Fixed32 startX, Fixed32 startY);
+void player_cursor_draw(void);
+void draw_response_rate(void);
+void draw_char_name(void);
+void player_select_init();
 void player_ow_init();
 void player_bat_init();
 void player_animate(void);
 void player_input(void);
 void player_ow_draw(void);
 void player_bat_draw(void);
+void player_select_draw(void);
+
+void char_init(int classValue, int partyNum, char newName[6]);
 
 void movePlayerLeft();
 void movePlayerRight();

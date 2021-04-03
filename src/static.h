@@ -18,5 +18,6 @@ int staticEnable;
 void static_init(STATIC_SCREEN *screen);
 void static_enable();
 void static_disable();
+void update_static(STATIC_SCREEN *screen);
 
 #endif

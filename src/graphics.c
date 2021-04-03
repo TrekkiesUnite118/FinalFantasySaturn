@@ -4,10 +4,7 @@ typedef unsigned long Uint32;
 
 //background tiles
 #include "graphic/owmap.c"
-//sprites
-#include "graphic/font.c"
-#include "graphic/owsprite.c"
-#include "graphic/bMap.c"
+#include "graphic/menu.c"
 #include "graphic/cave.c"
 #include "graphic/grass.c"
 #include "graphic/forest.c"
@@ -24,6 +21,17 @@ typedef unsigned long Uint32;
 #include "graphic/volcano.c"
 #include "graphic/water.c"
 #include "graphic/waterfall.c"
+
+//maps
+#include "graphic/bMap.c"
+#include "graphic/cname.c"
+#include "graphic/cselect.c"
+#include "graphic/title.c"
+
+//sprites
+#include "graphic/cursor.c"
+#include "graphic/font.c"
+#include "graphic/owsprite.c"
 #include "graphic/bsprite.c"
 #include "graphic/small0.c"
 #include "graphic/small1.c"
