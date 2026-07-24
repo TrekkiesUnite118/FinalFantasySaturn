@@ -35,8 +35,11 @@
     
     Uint8 canMoveCursor;
     Uint8 canUpdateValue;
+    Uint8 frameCount;
     int frame_count_a;
     int frame_count_b;
+    
+    Uint8 respondRateCounter;
     
     /****************************************
     *            declare functions            *

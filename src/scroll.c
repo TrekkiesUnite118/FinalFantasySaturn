@@ -3,6 +3,8 @@
 #include <sega_mth.h>
 #include <sega_scl.h>
 
+#include "nesutils.h"
+
 #include "cd.h"
 #include "overworld.h"
 #include "player.h"
@@ -40,18 +42,35 @@ void scroll_init(LEVEL *level) {
     Uint16 BackCol;
     SclVramConfig vram_cfg;
     
-    SCL_SetDisplayMode(SCL_NON_INTER,SCL_224LINE,SCL_NORMAL_A);
+    SCL_SetDisplayMode(SCL_NON_INTER,SCL_240LINE,SCL_NORMAL_A);
 
     SCL_SetColRamMode(SCL_CRM24_1024);
 
-    SCL_AllocColRam(SCL_RBG0, 16, OFF);
-    SCL_SetColRam(SCL_RBG0, 0, 16, (void *)(level->bg_far.palette));        
+    Uint32 numColors = 4 * 16;
 
-    BackCol = 0x0000; //set the background color to black
+    SCL_AllocColRam(SCL_RBG0, numColors, OFF);
+    Uint32 palette[8][16] = {{0}};
+    Uint8 palette_iter = 0;
+    Uint8 nes_val = 0;
+    for(int i = 0; i < level->bg.total_colors; i += 4) {
+
+        nes_val = level->bg.palette[i];
+        palette[palette_iter][0] = nes_pal[nes_val];
+        nes_val = level->bg.palette[i + 1];
+        palette[palette_iter][1] = nes_pal[nes_val];
+        nes_val = level->bg.palette[i + 2];
+        palette[palette_iter][2] = nes_pal[nes_val];
+        nes_val = level->bg.palette[i + 3];
+        palette[palette_iter][3] = nes_pal[nes_val];
+
+        SCL_SetColRam(SCL_RBG0, palette_iter * 16 , 16, (void *)palette[palette_iter]);   
+        palette_iter++;
+    } 
+
+    BackCol = nes_pal[0x0F]; //set the background color to black
     SCL_SetBack(SCL_VDP2_VRAM+0x80000-2,1,&BackCol);
-
-    
-    SCL_InitRotateTable(SCL_VDP2_VRAM_B1,1,SCL_RBG0,SCL_NON);
+   
+    SCL_InitRotateTable(SCL_VDP2_VRAM_B0,1,SCL_RBG0,SCL_NON);
 
     //setup VRAM configuration
     SCL_InitVramConfigTb(&vram_cfg);
@@ -77,10 +96,12 @@ void scroll_init(LEVEL *level) {
 
     //---rbg0: far bg---
     VramWorkP = (Uint8 *)SCL_VDP2_VRAM_A0;
-    cd_load(level->bg_far.tile_name, (void *)LWRAM_BUFFER, 128 * level->bg_far.tile_num);
-    memcpy(VramWorkP, (void *)LWRAM_BUFFER, 128 * level->bg_far.tile_num);
+
+    convertNesTilesToSatTiles(level->bg.tile_location, (Uint8 *)LWRAM_BUFFER, level->bg.rawlength);
+    buildMapTiles((Uint8 *)LWRAM_BUFFER, VramWorkP, (Uint8 *)LWRAM + 0x110);
+
     TilemapVram = (Uint8 *)SCL_VDP2_VRAM_A1;
-    tileMapPtr = &(level->bg_far.map_name);
+    tileMapPtr = &(level->bg.map_location);
 
     int x = 0;
     int y = 0;
@@ -89,7 +110,7 @@ void scroll_init(LEVEL *level) {
         int offset = 0;
         for(int i = 0; i < 4; i++) {
             update_plane(y_cords[y], x_cords[x]);
-            memcpy(Rbg0Scfg.plate_addr[planeNum] + offset, level->bg_far.map_name, 0x800);
+            memcpy(Rbg0Scfg.plate_addr[planeNum] + offset, level->bg.map_location, 0x800);
             x++;
             y++;
             offset += 0x800;
@@ -98,6 +119,7 @@ void scroll_init(LEVEL *level) {
 
     SCL_Open(SCL_RBG_TB_A);
     SCL_MoveTo(FIXED(0), FIXED(0), FIXED(0));/* Home Position */
+    
     SCL_Scale(FIXED(1.0), FIXED(1.0));
     SCL_Close();
      //set layer priorities
@@ -124,6 +146,10 @@ void scroll_set(int num, Fixed32 x, Fixed32 y) {
     scroll_move(num, x - scrolls_x[num], y - scrolls_y[num]);
 }
 
+void scroll_rotate_x(Fixed32 rotateAngle) {
+    SCL_RotateTo(FIXED(rotateAngle), FIXED(0), FIXED(0), SCL_X_AXIS);
+}
+
 //gets the value at the given coordinates for a map
 Uint16 scroll_get(int map, int x, int y) {
     
@@ -143,4 +169,3 @@ void scroll_disable() {
     Rbg0Scfg.dispenbl      = OFF;
     SCL_SetConfig(SCL_RBG0, &Rbg0Scfg);
 }
-

@@ -41,18 +41,12 @@ GCC     = c:/saturn/SH_COFF/sh-coff
 SEGASMP = $(SATURN)/segasmp
 SEGALIB = $(SATURN)/segalib
 
-LOCATE_FILE = saturn.lnk
+LOCATE_FILE = $(SEGASMP)/lib/saturn.lnk
 ENTRY_POINT = START
 CONFIG_FILE = sample.cfg
+LIBS_FILE = $(SEGASMP)/lib/libs.lst
 
-LIBS=	$(SEGALIB)/lib/sega_int.a\
-	$(SEGALIB)/lib/sega_spr.a\
-	$(SEGALIB)/lib/sega_scl.a\
-	$(SEGALIB)/lib/sega_mth.a\
-	$(SEGALIB)/lib/sega_cdc.a\
-	$(SEGALIB)/lib/sega_adp.a\
-	$(SEGALIB)/lib/sega_per.a\
-	$(SEGALIB)/lib/sega_sat.a
+include	$(LIBS_FILE)
 
 include	$(CONFIG_FILE)
 

@@ -16,6 +16,7 @@ const int OVERWORLDMAP_START = 0x00204210;
 const int OVERWORLDMAP_END = 0x00207F50;
 
 const int OVERWORLD_TILEDATA = 0x00200010;
+const int OVERWORLD_PALETTE_ASSIGNMENT = 0x00200310;
 
 const int BATTLE_BACKDROP = 0x00203310;
 
@@ -96,7 +97,14 @@ void update_plane(int map_y, int map_x) {
                 map_y = 255;
             }
 
-            mapPlane[i][j] = decompressedMap[map_y][map_x];
+            Uint16 tileVal = decompressedMap[map_y][map_x];
+            Uint8 *palPtr = OVERWORLD_PALETTE_ASSIGNMENT;
+            Uint8 palette_val = (palPtr[tileVal] & 3);
+
+            Uint16 tile = palette_val << 12;
+            tile += tileVal;
+
+            mapPlane[i][j] = tile;
             map_x++;
         }
         map_y++;
@@ -165,10 +173,10 @@ int encounterBattle() {
 
 }
 
-int determineBattleDomain(int pos_x, int pos_y, int property) {
-    int domain = 0;
-    int x_col = 0;
-    int y_col = 0;
+Uint8 determineBattleDomain(Uint8 pos_x, Uint8 pos_y, int property) {
+    Uint8 domain = 0;
+    Uint8 x_col = 0;
+    Uint8 y_col = 0;
 
     switch(property) {
         case NORMAL_BATTLE:

@@ -1,11 +1,11 @@
 /*----------------------------------------------------------------------------
- *  V_Blank.c -- V-BlankŠ„‚è‚İˆ—“àƒ‹[ƒ`ƒ“ƒTƒ“ƒvƒ‹
+ *  V_Blank.c -- V-Blankï¿½ï¿½ï¿½èï¿½İï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½[ï¿½`ï¿½ï¿½ï¿½Tï¿½ï¿½ï¿½vï¿½ï¿½
  *  Copyright(c) 1994 SEGA
  *  Written by K.M on 1994-05-16 Ver.1.00
  *  Updated by K.M on 1994-09-21 Ver.1.00
  *
- *  UsrVblankStart()    FV-BlankŠJnŠ„‚è‚İˆ—ƒTƒ“ƒvƒ‹
- *  UsrVblankEnd()    FV-BlankI—¹Š„‚è‚İˆ—ƒTƒ“ƒvƒ‹
+ *  UsrVblankStart()    ï¿½FV-Blankï¿½Jï¿½nï¿½ï¿½ï¿½èï¿½İï¿½ï¿½ï¿½ï¿½Tï¿½ï¿½ï¿½vï¿½ï¿½
+ *  UsrVblankEnd()    ï¿½FV-Blankï¿½Iï¿½ï¿½ï¿½ï¿½ï¿½èï¿½İï¿½ï¿½ï¿½ï¿½Tï¿½ï¿½ï¿½vï¿½ï¿½
  *
  *----------------------------------------------------------------------------
  */
@@ -19,6 +19,10 @@
 #include    "per_x.h"
 #include    "scroll.h"
 #include    "vblank.h"
+#include    "menu.h"
+#include    "player.h"
+#include    "battle.h"
+#include    "cd.h"
 
 volatile trigger_t    PadData1  = 0x0000;
 volatile trigger_t    PadData1E = 0x0000;
@@ -35,9 +39,11 @@ frame_count_b = 0;
 void SetVblank(void) {
     canUpdateValue = 0;
     canMoveCursor = 0;
+    respondRateCounter = 0;
+    frameCount = 0;
     __port = PER_OpenPort();
     
-    /* V-BlankŠ„‚è‚İƒ‹[ƒ`ƒ“‚Ì“o˜^ */
+    /* V-Blankï¿½ï¿½ï¿½èï¿½İƒï¿½ï¿½[ï¿½`ï¿½ï¿½ï¿½Ì“oï¿½^ */
     INT_ChgMsk(INT_MSK_NULL,INT_MSK_VBLK_IN | INT_MSK_VBLK_OUT);
     INT_SetScuFunc(INT_SCU_VBLK_IN,UsrVblankIn);
     INT_SetScuFunc(INT_SCU_VBLK_OUT,UsrVblankOut);
@@ -46,6 +52,13 @@ void SetVblank(void) {
 
 
 void UsrVblankIn(void) {
+    
+    if(frameCount == 60) {
+        frameCount = 0;
+    } else {
+        frameCount++;
+    }
+    respondRateCounter++;
     SCL_VblankStart();
 }
 
@@ -87,5 +100,25 @@ void UsrVblankOut(void) {
         else{
             PadData2 = PadData2E = 0;
         }
+    }
+
+    player_input();
+
+    if(state == PRELUDE) {
+        preludeAnimate();
+    }
+
+    if(state != OW_STATE && state != TO_OW_STATE) {
+        update_static();
+    }
+
+    if(state == BAT_MENU_STATE) {
+        
+        doBattleMenu();
+    } else if(state == BAT_EXECUTE_STATE) {
+        doBattleExec();
+    } else if(state == BAT_VICTORY_STATE) {
+        
+        party_animate_battle_cheer();
     }
 }

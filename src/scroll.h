@@ -9,6 +9,7 @@
 
 #include "datatypes.h"
 #include "vdp2structs.h"
+#include "graphicrefs.h"
 
 extern Sint32 map_tiles_x[], map_tiles_y[];
 
@@ -32,9 +33,7 @@ extern Fixed32 scrolls_y[];
 typedef struct {
     Fixed32 player_startx; //where the player starts in the level
     Fixed32 player_starty;
-    LAYER playfield; //map the player does stuff on
-    LAYER bg_near; //near bg
-    LAYER bg_far; //far bg
+    MAP_DATA bg; //far bg
 } LEVEL;
 
 enum transition_states {
@@ -49,6 +48,7 @@ int scrollEnable;
 void scroll_init(LEVEL *level);
 //translate scroll by x,y amounts
 void scroll_move(int num, Fixed32 x, Fixed32 y);
+void scroll_rotate_x(Fixed32 rotateAngle);
 //moves scroll absolutely to coordinates
 void scroll_set(int num, Fixed32 x, Fixed32 y);
 //gets the value at the given coordinates for a square map
@@ -57,4 +57,5 @@ void copyPlanes(int x, int y, int offset);
 void scroll_copy(int num);
 void scroll_enable();
 void scroll_disable();
+
 #endif

@@ -15,9 +15,13 @@ typedef struct {
 } STATIC_SCREEN;
 int staticEnable;
 
-void static_init(STATIC_SCREEN *screen);
+void static_init();
 void static_enable();
 void static_disable();
-void update_static(STATIC_SCREEN *screen);
+void static_move(Fixed32 x, Fixed32 y);
+void update_static();
+void update_palettes();
+void update_static_portion(Uint16 *lwram_map_ptr, Uint16 vram_offset, Uint8 height, Uint8 width);
+void memsetDword(Uint32 *dst, Uint32 value, Sint32 cnt);
 
 #endif

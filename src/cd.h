@@ -1,8 +1,13 @@
 #ifndef CD_H
 #define CD_H
 
-#define LWRAM    (2097152)
-#define LWRAM_BUFFER    (2490368)
+#define LWRAM    (0x200000)
+#define LWRAM_ROM_END    (0x260000)
+#define LWRAM_MAP_SPRITES    (0x262A40)
+#define LWRAM_BATTLE_SPRITES    (0x268A40)
+#define LWRAM_WEAPON_SPRITES    (0x26C040)
+#define LWRAM_MENU_TILES    (0x26D040)
+#define LWRAM_BUFFER    (0x26F040)
 //init cd stuff
 void cd_init(void);
 

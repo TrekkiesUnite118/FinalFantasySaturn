@@ -3,7 +3,7 @@ OUTPUT_ARCH(sh)
 
 SECTIONS
 {
-	.text	0x06010000:
+	.text	0x06004000:
 	{
 		*(.text)
 		*(.strings)

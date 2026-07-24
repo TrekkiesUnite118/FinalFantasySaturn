@@ -8,15 +8,16 @@
 #include "print.h"
 #include "static.h"
 #include "sprite.h"
+#include "menu.h"
 
 #define    MAP_OFFSET    (0x0800 *4)
 #define    MAP_NUM        16
 
 Uint32 static_screen_vram[] = {SCL_VDP2_VRAM_A0, SCL_VDP2_VRAM_A0 + 0x800, SCL_VDP2_VRAM_B1, SCL_VDP2_VRAM_B1 + 0x800}; //where in VRAM each tilemap is
 #define VRAM_PTR(bg) ((Uint16 *)static_screen_vram[bg])
+
 Uint8 **tileMapPtr;
 Uint16 *lwram_ptr = (Uint16 *)LWRAM_BUFFER;
-
 /*
  * 0: NBG0 Pattern Name
  * 1: NBG1 Pattern Name
@@ -55,19 +56,25 @@ Uint16    CycleTb[]={
 
 SclConfig nbg1Scfg;
 
-void static_init(STATIC_SCREEN *screen) {
+void static_init() {
     
+    memset((Uint32 *)SCL_VDP2_VRAM_A, 0x00000000, 512L * 512L/2);
+
     Uint8 *VramWorkP;
     Uint16 *TilemapVram;
     Uint16 BackCol;
     SclVramConfig vram_cfg;
     
-    SCL_SetDisplayMode(SCL_NON_INTER,SCL_224LINE,SCL_NORMAL_A);
+    SCL_SetDisplayMode(SCL_NON_INTER,SCL_240LINE,SCL_NORMAL_A);
 
     SCL_SetColRamMode(SCL_CRM24_1024);
 
-    SCL_AllocColRam(SCL_NBG1, 16, OFF);
-    SCL_SetColRam(SCL_NBG1, 0, 16, (void *)(screen->bg.palette));        
+    SCL_AllocColRam(SCL_NBG1, 64, OFF);
+    SCL_SetColRam(SCL_NBG1, 0, 16, &menu_pal_0);     
+    SCL_SetColRam(SCL_NBG1, 16, 16, &menu_pal_1);  
+    SCL_SetColRam(SCL_NBG1, 32, 16, &menu_pal_2);  
+    SCL_SetColRam(SCL_NBG1, 48, 16, &menu_pal_3);   
+    SCL_SetColRam(SCL_NBG1, 64, 16, &menu_pal_4);    
 
     BackCol = 0x0000; //set the background color to black
     SCL_SetBack(SCL_VDP2_VRAM+0x80000-2,1,&BackCol);
@@ -96,27 +103,10 @@ void static_init(STATIC_SCREEN *screen) {
 
     //---nbg1: bg---
     VramWorkP = (Uint8 *)SCL_VDP2_VRAM_A1;
-    cd_load(screen->bg.tile_name, lwram_ptr, 128 * screen->bg.tile_num);
-    memcpy(VramWorkP, (void *)LWRAM_BUFFER, 128 * screen->bg.tile_num);
-    TilemapVram = (Uint8 *)SCL_VDP2_VRAM_A0;
-    tileMapPtr = &(screen->bg.map_name);
+    memcpy(VramWorkP, (void *)LWRAM_MENU_TILES, 0x2000);
+    
+    memcpy((Uint8 *)SCL_VDP2_VRAM_A0, &menuPlane, 0x2000);
 
-    cd_load(screen->bg.map_name, lwram_ptr, (screen->bg.map_width * screen->bg.map_height) * 2);
-    int tileHPos = 0;
-    int lwramPos = 0;
-    for (int i = 0; i < 64 * 64; i++) {
-        if(tileHPos < 40) {
-            TilemapVram[i] = lwram_ptr[lwramPos];
-            lwramPos++;
-        } else {
-            TilemapVram[i] = 0;
-        }
-        
-        tileHPos++;
-        if(tileHPos == 64) {
-            tileHPos = 0;
-        }
-    }
     //setup VRAM configuration
     SCL_InitVramConfigTb(&vram_cfg);
         vram_cfg.vramModeA = ON; //separate VRAM A into A0 & A1
@@ -142,23 +132,43 @@ void static_disable() {
     SCL_SetConfig(SCL_NBG1, &nbg1Scfg);
 }
 
-void update_static(STATIC_SCREEN *screen) {
+void update_static() {
+
+    memcpy((Uint32 *)SCL_VDP2_VRAM_A0, &menuPlane, 0x2000);
+}
+
+void update_palettes() {
+    
+    SCL_AllocColRam(SCL_NBG1, 64, OFF);
+    SCL_SetColRam(SCL_NBG1, 0, 16, &menu_pal_0);     
+    SCL_SetColRam(SCL_NBG1, 16, 16, &menu_pal_1);  
+    SCL_SetColRam(SCL_NBG1, 32, 16, &menu_pal_2);  
+    SCL_SetColRam(SCL_NBG1, 48, 16, &menu_pal_3);   
+    SCL_SetColRam(SCL_NBG1, 64, 16, &menu_pal_4);    
+}
+
+void static_move_to(Fixed32 x, Fixed32 y) {
+
+    SCL_Open(SCL_NBG1);
+    SCL_MoveTo(x, y, 0);
+    SCL_Close();
+}
+
+void update_static_portion(Uint16 *lwram_map_ptr, Uint16 vram_offset, Uint8 height, Uint8 width) {
     
     Uint16 *TilemapVram = (Uint8 *)SCL_VDP2_VRAM_A0;
-    cd_load(screen->bg.map_name, lwram_ptr, (screen->bg.map_width * screen->bg.map_height) * 2);
     int tileHPos = 0;
     int lwramPos = 0;
-    for (int i = 0; i < 64 * 64; i++) {
-        if(tileHPos < 40) {
-            TilemapVram[i] = lwram_ptr[lwramPos];
+    int lineOffset = 64 - width;
+    for (int i = 0; i < 64 * height; i++) {
+        if(tileHPos < width) {
+            TilemapVram[i + vram_offset] = lwram_map_ptr[lwramPos];
             lwramPos++;
+            tileHPos++;
         } else {
-            TilemapVram[i] = 0;
-        }
-        
-        tileHPos++;
-        if(tileHPos == 64) {
             tileHPos = 0;
+            i+=lineOffset - 1;
         }
     }
 }
+

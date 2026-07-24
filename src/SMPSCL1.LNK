@@ -14,6 +14,6 @@ LIBRARY	..\..\..\segalib\lib\sega_scl.lib
 LIBRARY	..\..\..\segalib\lib\sega_int.lib
 LIBRARY	..\..\..\sh\lib\shcnpic.lib
 ENTRY	START
-START	P,SEGA_P,C,SEGA_C,D,SEGA_D,B,SEGA_B(06010000)
+START	P,SEGA_P,C,SEGA_C,D,SEGA_D,B,SEGA_B(06004000)
 PRINT 	smpscl1.map
 EXIT

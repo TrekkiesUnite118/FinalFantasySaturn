@@ -27,7 +27,7 @@
 
 extern Uint16 decompressedMap[256][256];
 
-extern Uint16 mapPlane[32][32];;
+extern Uint16 mapPlane[32][32];
 
 extern const int OVERWORLDMAP_OFFSET;
 extern const int OVERWORLDMAP_PTRADD;
@@ -59,7 +59,7 @@ BYTE getTileBattleBackdrop(int map_y, int map_x);
 
 int encounterBattle();
 
-int determineBattleDomain(int pos_x, int pos_y, int property);
+Uint8 determineBattleDomain(Uint8 pos_x, Uint8 pos_y, int property);
 
 BYTE getBattleNum(int domain);
 
