@@ -1,9 +1,12 @@
 # Final Fantasy for Sega Saturn
-This is an attempt at porting the NES version of Final Fantasy 1 to the Sega Saturn using SBL (Sega Basic Library). This originally began as a branch off of ndiddy's sample code, but has morphed into it's own thing. This started as me converting the logic over from the disassembly to C. I eventually got sidetracked and the project became stale. Recently I figured this might be a good test for using AI to implement the remaining logic I hadn't gotten to yet. I originally had the Prelude, Title screen, Party Creation Screen, Overworld map screen, and a signfiicant portion of the Battle system ported over. For my test I had Claude AI impelement the rest. Overall I think it did a pretty good job thanks to the framework I had laid out as well as the incredibly well documented disassembly. My hope is that this can be a good example of using AI intelligently for this kind of project, rather than the slop examples we've been seeing lately. The framework could also allow easier porting of other NES games such as FF2 and FF3.
+This is an attempt at porting the NES version of Final Fantasy 1 to the Sega Saturn using SBL (Sega Basic Library). This originally began as a branch off of ndiddy's sample code, but has morphed into it's own thing. This started as me converting the logic over from the disassembly to C. I eventually got sidetracked and the project became stale.
+
+Recently I figured this might be a good test for using AI to implement the remaining logic I hadn't gotten to yet. I originally had the Prelude, Title screen, Party Creation Screen, Overworld map screen, and a significant portion of the Battle system ported over. For my test I had Claude AI implement the rest. Overall I think it did a pretty good job thanks to the framework I had laid out as well as the incredibly well documented disassembly. My hope is that this can be a good example of using AI intelligently for this kind of project, rather than the slop examples we've been seeing lately. The framework could also allow easier porting of other NES games such as FF2 and FF3.
 
 This project works by using the original NES ROM all data. You will need to provide your own US NES ROM. Any good dump should work. Sound is provided using a modified version of celeriyacon's NSF Player. 
 
 The NES Disassembly can be found here:
+
 https://github.com/Entroper/FF1Disassembly
 
 ndiddy's original example project can be found here: 
