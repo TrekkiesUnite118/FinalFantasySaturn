@@ -32,7 +32,7 @@
 CC = sh-coff-gcc
 AS = gasm
 
-CFLAGS  = -g -O2 -Wall -std=gnu99 -m2 -DMODEL_S -I$(GCC)/include -I$(SEGALIB)/include -I$(SEGASMP)/per/smpclib
+CFLAGS  = -g -O2 -Wall -std=gnu99 -m2 -DMODEL_S -I. -Isaturn -Ines -Iff1 -Iff1/sat -I$(GCC)/include -I$(SEGALIB)/include -I$(SEGASMP)/per/smpclib
 ASFLAGS =
 LDFLAGS = -T $(LOCATE_FILE) -e $(ENTRY_POINT) -nostartfiles
 
@@ -53,6 +53,8 @@ include	$(CONFIG_FILE)
 .SUFFIXES:
 .SUFFIXES: .cof .o .src .c
 
+vpath %.c saturn nes ff1 ff1/sat
+
 all: $(TARGET).cof $(TARGET).bin
 
 $(TARGET).cof:	$(OBJS)
@@ -69,3 +71,14 @@ $(TARGET).bin:	$(OBJS)
 
 
 
+# Fails if FF1 game code (ff1/, not ff1/sat/) reaches an SBL header or a 0x25xxxxxx hardware address.
+.PHONY: check
+check:
+	@fail=0; \
+	for f in ff1/*.c; do \
+		if $(CC) -MM $(CFLAGS) $$f | grep -qi "sega_"; then echo "SBL header reached: $$f"; fail=1; fi; \
+	done; \
+	if grep -il "include *<sega_" ff1/*.h; then fail=1; fi; \
+	if grep -nE "0x25[0-9A-Fa-f]{6}" ff1/*.c ff1/*.h; then fail=1; fi; \
+	if [ $$fail = 0 ]; then echo "check: ff1/ is SBL-free"; fi; \
+	exit $$fail
