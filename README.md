@@ -59,7 +59,7 @@ Possible ideas for future features are as follows:
 
 * Options for MSX Graphics and Sound.
 * Option for PS1 or Pixel Remaster Graphics and Sound.
-* Modern interface and quality of life improvements that have been added later ports of the original game.
+* Modern interface and quality of life improvements that have been added to later ports of the original game.
 * Options for CD Audio Music.
 * Optional graphical enhancements (Gouraud Shading for buff and debuffs in battle, transparent text boxes, etc.)
 * Support for the Japanese ROM.
