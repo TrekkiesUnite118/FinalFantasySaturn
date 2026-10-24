@@ -34,7 +34,7 @@ https://github.com/shicky256/SaturnDev#readme
 
 ## What's currently implemented:
 
-The entire game should be implemented now, however I have not done a full playthrough yet, only spot checked with setting different states in the code to debug.
+The entire game should be implemented now, however I have not done a full playthrough yet, only spot checked with setting different states in the code to debug. The Japanese ROM is also supported.
 
 Controls are as follows:
 
@@ -62,7 +62,6 @@ Possible ideas for future features are as follows:
 * Modern interface and quality of life improvements that have been added to later ports of the original game.
 * Options for CD Audio Music.
 * Optional graphical enhancements (Gouraud Shading for buff and debuffs in battle, transparent text boxes, etc.)
-* Support for the Japanese ROM.
 
 Keep in mind these are just ideas, there's no gaurantee they'll actually be implemented.
 
