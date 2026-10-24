@@ -4,10 +4,6 @@
 #include "magic.h"
 #include "bugfix.h"
 
-#define MAGIC_BATTLE_MSG_LUT (0x002304D0)
-#define ITEM_NAME_PTR_TABLE (0x0022B710)
-#define ITEM_NAME_BANK_ADD (0x00220010)
-#define ENEMY_ATTACK_NAME_PTR_TABLE (0x0022B610)
 #define MAGIC_ITEM_START (0xB0)
 
 #define CATEGORY_UNDEAD (0x08)

@@ -13,6 +13,7 @@
 
 #include "types.h"
 #include "sprite.h"
+#include "romaddr.h"
 
 //Sprite priority numbers for sprite_make.
 #define CURSOR_PRIORITY (3)
@@ -21,9 +22,6 @@
 #define WEAPON_PRIORITY (0)
 
 #define STONE_PALETTE_CRAM (80)
-//NES palette tables in the ROM.
-#define BATTLE_CHAR_PALETTE_TABLE (0x0023EBB5)
-#define CURSOR_PALETTE (0x00203234)
 
 //Sprite palettes, 16 colors each.
 extern Uint32 player_pal_0[];

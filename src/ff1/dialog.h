@@ -12,11 +12,7 @@
 #define DIALOG_H
 
 #include "types.h"
-
-#define LUT_DIALOGUE_PTR (0x00228010) //Bank $0A $8000, 16-bit pointers into the same bank.
-#define DIALOGUE_BANK_ADD (0x00220010) //LWRAM address of bank $0A minus $8000.
-#define LUT_TREASURE (0x00203110) //Bank $00 $B100, chest contents by chest ID.
-#define LUT_ITEM_PRICES (0x00237C10) //Bank $0D $BC00, 16-bit prices by item ID.
+#include "romaddr.h"
 
 #define DLGID_NOTHING (0x00)
 #define DLGID_DONTBEGREEDY (0x3A)

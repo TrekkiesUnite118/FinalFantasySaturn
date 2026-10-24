@@ -4,19 +4,7 @@
 #include "player.h"
 #include "nesaudio.h"
 #include "music.h"
-
-//NES bank $0D ($8000-$BFFF) and fixed bank $0F ($C000-$FFFF) in the loaded ROM.
-#define MUSIC_BANK_0D (LWRAM + 0x10 + (0x0D * 0x4000))
-#define MUSIC_BANK_0F (LWRAM + 0x10 + (0x0F * 0x4000))
-
-#define LUT_SCORE_DATA (0x8000)
-#define LUT_OCTAVE_OFFSET (0xB2F3)
-#define LUT_NOTE_FREQS (0xB2F9)
-#define LUT_NOTE_LENGTHS (0xB359)
-#define LUT_ENV_SPEEDS (0xB3B9)
-#define LUT_ENV_PATTERNS (0xB3C9)
-#define LUT_VEHICLE_MUSIC (0xC759)
-#define LUT_TILESET_MUSIC (0xCFC3)
+#include "romaddr.h"
 
 enum {
     CHAN_SQ1,
@@ -51,11 +39,11 @@ static volatile Uint8 apuQueueHead;
 static volatile Uint8 apuQueueTail;
 
 static Uint8 rom0D(Uint16 addr) {
-    return *(Uint8 *)(MUSIC_BANK_0D + (addr & 0x3FFF));
+    return *(Uint8 *)(ROM_BANK(0x0D) + (addr & 0x3FFF));
 }
 
 static Uint8 rom0F(Uint16 addr) {
-    return *(Uint8 *)(MUSIC_BANK_0F + (addr & 0x3FFF));
+    return *(Uint8 *)(ROM_BANK(0x0F) + (addr & 0x3FFF));
 }
 
 static Uint16 rom0DWord(Uint16 addr) {
@@ -300,9 +288,6 @@ void musicPlay() {
     }
 }
 
-#define BATTLE_BANK_0C (LWRAM + 0x10 + (0x0C * 0x4000))
-#define LUT_BATTLE_SFX (0xBFA4)
-
 //NES btlsfx_* variables.
 static Uint8 *btlSfxSq2Ptr;
 static Uint8 *btlSfxNsePtr;
@@ -341,8 +326,8 @@ static void battleSfxNoise() {
 
 //NES PlayBattleSFX, run before MusicPlay so sq2_sfx is set first.
 static void battleSfxStart(Uint8 id) {
-    Uint8 *lut = (Uint8 *)BATTLE_BANK_0C + (LUT_BATTLE_SFX & 0x3FFF) + (id * 2);
-    Uint8 *sfx = (Uint8 *)BATTLE_BANK_0C + ((lut[0] | (lut[1] << 8)) & 0x3FFF);
+    Uint8 *lut = (Uint8 *)ROM_BANK(0x0C) + (LUT_BATTLE_SFX & 0x3FFF) + (id * 2);
+    Uint8 *sfx = (Uint8 *)ROM_BANK(0x0C) + ((lut[0] | (lut[1] << 8)) & 0x3FFF);
 
     btlSfxSq2Ptr = sfx + 3;
     btlSfxNsePtr = sfx + 8;

@@ -33,6 +33,10 @@ CC = sh-coff-gcc
 AS = gasm
 
 CFLAGS  = -g -O2 -Wall -std=gnu99 -m2 -DMODEL_S -I. -Isaturn -Ines -Iff1 -Iff1/sat -I$(GCC)/include -I$(SEGALIB)/include -I$(SEGASMP)/per/smpclib
+#make JP=1 builds for the Japanese ROM.
+ifeq ($(JP),1)
+CFLAGS += -DFF1_JP
+endif
 ASFLAGS =
 LDFLAGS = -T $(LOCATE_FILE) -e $(ENTRY_POINT) -nostartfiles
 

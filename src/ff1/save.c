@@ -23,14 +23,31 @@
 #define SV_PAL (0)
 #define SV_FRAME_BATTLE_START (96)
 
-//Box layout in NES tile coords. The 27 rows used sit 1 row from the top, 2 from the bottom.
+//Box layout in NES tile coords. The 27 rows used (28 Japanese) sit 1 row from the top.
+//Japanese text needs a free row above it for dakuten marks, like the Japanese ROM's taller boxes.
+#ifdef FF1_JP
+#define SV_TXT(us, jp) (jp)
+#define SV_TOP_H (4)
+#define SV_NAME_Y (1)
+#define SV_RIGHT_COL (15)
+#define SV_TEXT_COL (2)
+#define SV_GOLD_Y (4)
+#define SV_BOOT_LINE_H (2)
+#else
+#define SV_TXT(us, jp) (us)
+#define SV_TOP_H (3)
+#define SV_NAME_Y (0)
+#define SV_RIGHT_COL (16)
+#define SV_TEXT_COL (3)
+#define SV_GOLD_Y (SV_SLOT_H - 2)
+#define SV_BOOT_LINE_H (1)
+#endif
 #define SV_LABEL_X (0)
 #define SV_LABEL_W (7)
 #define SV_MSG_X (7)
 #define SV_MSG_W (25)
 #define SV_TOP_Y (1)
-#define SV_TOP_H (3)
-#define SV_TEXT_Y (SV_TOP_Y + 1)
+#define SV_TEXT_Y (SV_TOP_Y + SV_TOP_H - 2)
 #define SV_MSG_TEXT_X (SV_MSG_X + 1)
 #define SV_YES_X (SV_MSG_TEXT_X + 13)
 #define SV_NO_X (SV_MSG_TEXT_X + 19)
@@ -45,7 +62,11 @@
 #define SV_BOOT_TEXT_Y (SV_BOOT_BOX_Y + 2)
 #define SV_BOOT_MSG_MAX (3)
 
+#ifdef FF1_JP
+static const char *svDeviceNames[SV_DEVICES] = {"ほんたいメモリ", "カートリッジメモリ", "フロッピードライブ1", "フロッピードライブ2"};
+#else
 static const char *svDeviceNames[SV_DEVICES] = {"System Memory", "Cartridge Memory", "Floppy Drive 1", "Floppy Drive 2"};
+#endif
 static const Uint8 svDeviceUnit[SV_DEVICES] = {0, 1, SV_FLOPPY_UNIT, SV_FLOPPY_UNIT};
 static const Uint8 svDevicePart[SV_DEVICES] = {0, 0, 0, 1};
 
@@ -207,6 +228,15 @@ static void svApply(SAVE_DATA *d) {
     setOWVehicle(d->vehicle);
 }
 
+#ifdef FF1_JP
+//UTF-8 to the Japanese ROM's text codes.
+static void svText(Uint8 *dst, const char *src) {
+    while(*src) {
+        *dst++ = jpTextCode(&src);
+    }
+    *dst = 0x00;
+}
+#else
 //ASCII to the NES menu font.
 static void svText(Uint8 *dst, const char *src) {
     for(; *src; src++, dst++) {
@@ -233,6 +263,7 @@ static void svText(Uint8 *dst, const char *src) {
     }
     *dst = 0x00;
 }
+#endif
 
 static void svDrawText(Uint8 x, Uint8 y, const char *str) {
     Uint8 buffer[32];
@@ -246,8 +277,8 @@ static void svMessage(const char *line, Uint8 yesNo) {
     drawBox(SV_MSG_X, SV_TOP_Y, SV_MSG_W, SV_TOP_H, SV_PAL);
     svDrawText(SV_MSG_TEXT_X, SV_TEXT_Y, line);
     if(yesNo) {
-        svDrawText(SV_YES_X, SV_TEXT_Y, "Yes");
-        svDrawText(SV_NO_X, SV_TEXT_Y, "No");
+        svDrawText(SV_YES_X, SV_TEXT_Y, SV_TXT("Yes", "はい"));
+        svDrawText(SV_NO_X, SV_TEXT_Y, SV_TXT("No", "いいえ"));
     }
 }
 
@@ -265,9 +296,9 @@ static void svDrawCharacter(PLAYER_CHARACTER *c, Uint8 x, Uint8 y) {
     memcpy(buffer, c->name, 6);
     buffer[6] = 0x00;
     drawComplexString(x, y, buffer, SV_PAL);
-    svDrawText(x + 7, y, "LV");
+    svDrawText(x + 7, y, SV_TXT("LV", "L"));
     formatNumber(buffer, c->level, 2);
-    drawComplexString(x + 9, y, buffer, SV_PAL);
+    drawComplexString(x + SV_TXT(9, 8), y, buffer, SV_PAL);
 
     svDrawText(x, y + 1, "HP");
     formatNumber(buffer, c->current_hp, 3);
@@ -282,13 +313,13 @@ static void svDrawSlot(Uint8 slot) {
 
     drawBox(0, top, SV_SLOT_W, SV_SLOT_H, SV_PAL);
     if(svDevState == DEV_NONE) {
-        text = "Not connected";
+        text = SV_TXT("Not connected", "せつぞく されていません");
     } else if(svDevState == DEV_UNFORMAT) {
-        text = "Not formatted";
+        text = SV_TXT("Not formatted", "フォーマット されていません");
     } else if(svSlotState[slot] == SLOT_BROKEN) {
-        text = "This file cannot be used";
+        text = SV_TXT("This file cannot be used", "このデータは つかえません");
     } else if(svSlotState[slot] == SLOT_EMPTY) {
-        text = (svMode == SV_MODE_SAVE && !svHasSpace) ? "Not enough space" : "Empty";
+        text = (svMode == SV_MODE_SAVE && !svHasSpace) ? SV_TXT("Not enough space", "ようりょうが たりません") : SV_TXT("Empty", "データなし");
     }
     if(text) {
         svDrawText(3, top + 3, text);
@@ -298,13 +329,19 @@ static void svDrawSlot(Uint8 slot) {
     SAVE_DATA *d = &svSlotData[slot];
     Uint8 buffer[10];
     for(Uint8 i = 0; i < 4; i++) {
-        svDrawCharacter(&d->party[i], ((i & 1) ? 16 : 1) + 3, top + 1 + (i >> 1) * 3);
+        svDrawCharacter(&d->party[i], ((i & 1) ? SV_RIGHT_COL : 1) + SV_TEXT_COL, top + 1 + SV_NAME_Y + (i >> 1) * 3);
     }
     formatNumber(buffer, d->gold, 6);
+#ifdef FF1_JP
+    //"ギル"
+    buffer[6] = 0x5D;
+    buffer[7] = 0xF2;
+#else
     buffer[6] = 0xFF;
     buffer[7] = 0x90;
+#endif
     buffer[8] = 0x00;
-    drawComplexString(SV_SLOT_W - 9, top + SV_SLOT_H - 2, buffer, SV_PAL);
+    drawComplexString(SV_SLOT_W - 9, top + SV_GOLD_Y, buffer, SV_PAL);
 }
 
 static void svDrawSlots() {
@@ -477,10 +514,12 @@ Uint8 saveBootMessagePending() {
     return svBootMsgIndex < svBootMsgCount;
 }
 
-static void svBlocksLine(char *dst, Uint32 blocks, const char *rest) {
+static void svBlocksLine(char *dst, const char *prefix, Uint32 blocks, const char *rest) {
     char digits[10];
     Uint8 n = 0;
 
+    strcpy(dst, prefix);
+    dst += strlen(prefix);
     do {
         digits[n++] = '0' + (blocks % 10);
         blocks /= 10;
@@ -493,7 +532,7 @@ static void svBlocksLine(char *dst, Uint32 blocks, const char *rest) {
 
 void setupBootMessage() {
     const char *lines[12];
-    char blocks[2][32];
+    char blocks[2][64];
     Uint8 count = 0;
     Uint8 msg = svBootMsgs[svBootMsgIndex];
 
@@ -502,6 +541,34 @@ void setupBootMessage() {
     }
     clearMenuPlane();
     drawBox(0, SV_BOOT_BOX_Y, SV_SLOT_W, SV_BOOT_BOX_H, SV_PAL);
+#ifdef FF1_JP
+    if(msg == SV_BOOT_NO_SPACE) {
+        Uint8 cart = svBootStat[1].blocksize != 0;
+
+        lines[count++] = "セーブに ひつような メモリの";
+        lines[count++] = "ようりょうが たりません。";
+        lines[count++] = "このまま あそべますが";
+        lines[count++] = "セーブは できません。";
+        lines[count++] = "";
+        lines[count++] = "セーブするには メモリマネージャーで";
+        if(cart) {
+            svBlocksLine(blocks[0], "ほんたいメモリを ", svBlocksNeeded(0), "ブロック または");
+            svBlocksLine(blocks[1], "カートリッジメモリを ", svBlocksNeeded(1), "ブロック");
+            lines[count++] = blocks[0];
+            lines[count++] = blocks[1];
+        } else {
+            svBlocksLine(blocks[0], "ほんたいメモリを ", svBlocksNeeded(0), "ブロック");
+            lines[count++] = blocks[0];
+        }
+        lines[count++] = "あけてください。";
+    } else {
+        lines[count++] = (msg == SV_BOOT_CORRUPT_SYSTEM) ? "ほんたいメモリが こわれています。" : "カートリッジメモリが こわれています。";
+        lines[count++] = "フォーマットが ひつようです。";
+        lines[count++] = "";
+        lines[count++] = "サターンを メモリマネージャーで きどうして";
+        lines[count++] = "メモリを しょきか してください。";
+    }
+#else
     if(msg == SV_BOOT_NO_SPACE) {
         Uint8 cart = svBootStat[1].blocksize != 0;
 
@@ -515,13 +582,13 @@ void setupBootMessage() {
         lines[count++] = "";
         lines[count++] = "To be able to save, free up";
         if(cart) {
-            svBlocksLine(blocks[0], svBlocksNeeded(0), " blocks of System Memory or");
-            svBlocksLine(blocks[1], svBlocksNeeded(1), " blocks of Cartridge Memory");
+            svBlocksLine(blocks[0], "", svBlocksNeeded(0), " blocks of System Memory or");
+            svBlocksLine(blocks[1], "", svBlocksNeeded(1), " blocks of Cartridge Memory");
             lines[count++] = blocks[0];
             lines[count++] = blocks[1];
             lines[count++] = "in the Memory Manager.";
         } else {
-            svBlocksLine(blocks[0], svBlocksNeeded(0), " blocks of System Memory in");
+            svBlocksLine(blocks[0], "", svBlocksNeeded(0), " blocks of System Memory in");
             lines[count++] = blocks[0];
             lines[count++] = "the Memory Manager.";
         }
@@ -533,10 +600,11 @@ void setupBootMessage() {
         lines[count++] = "Saturn into the Memory";
         lines[count++] = "Manager and clear the memory.";
     }
+#endif
     for(Uint8 i = 0; i < count; i++) {
-        svDrawText(SV_BOOT_TEXT_X, SV_BOOT_TEXT_Y + i, lines[i]);
+        svDrawText(SV_BOOT_TEXT_X, SV_BOOT_TEXT_Y + i * SV_BOOT_LINE_H, lines[i]);
     }
-    svDrawText(SV_BOOT_TEXT_X, SV_BOOT_BOX_Y + SV_BOOT_BOX_H - 3, "Press a button.");
+    svDrawText(SV_BOOT_TEXT_X, SV_BOOT_BOX_Y + SV_BOOT_BOX_H - 3, SV_TXT("Press a button.", "ボタンを おしてください。"));
     svPadPrev = PadData1;
 }
 
@@ -560,7 +628,7 @@ void setupSaveScreen() {
         menu_pal_0[i] = nes_pal[boarderPalette_blue[i]];
     }
     drawBox(SV_LABEL_X, SV_TOP_Y, SV_LABEL_W, SV_TOP_H, SV_PAL);
-    svDrawText(SV_LABEL_X + 1, SV_TEXT_Y, (svMode == SV_MODE_SAVE) ? "SAVE" : "LOAD");
+    svDrawText(SV_LABEL_X + 1, SV_TEXT_Y, (svMode == SV_MODE_SAVE) ? SV_TXT("SAVE", "セーブ") : SV_TXT("LOAD", "ロード"));
     drawBox(SV_MSG_X, SV_TOP_Y, SV_MSG_W, SV_TOP_H, SV_PAL);
     for(Uint8 i = 0; i < SV_SLOTS; i++) {
         drawBox(0, svSlotTop(i), SV_SLOT_W, SV_SLOT_H, SV_PAL);
@@ -597,11 +665,11 @@ static void svSelectSlot() {
     }
     sfxMenuSel();
     if(svMode == SV_MODE_LOAD) {
-        svConfirm(SV_ACT_LOAD, "Load file?");
+        svConfirm(SV_ACT_LOAD, SV_TXT("Load file?", "ロードしますか?"));
     } else if(svSlotState[svCursor] == SLOT_EMPTY) {
-        svConfirm(SV_ACT_SAVE, "Save here?");
+        svConfirm(SV_ACT_SAVE, SV_TXT("Save here?", "セーブしますか?"));
     } else {
-        svConfirm(SV_ACT_SAVE, "Overwrite?");
+        svConfirm(SV_ACT_SAVE, SV_TXT("Overwrite?", "うわがきしますか?"));
     }
 }
 
@@ -647,9 +715,9 @@ void doSaveMenu() {
             } else if(pressed & (PAD_A | PAD_C)) {
                 sfxMenuSel();
                 if(svAction == SV_ACT_LOAD) {
-                    svBusy(SV_REQ_LOAD, "Loading.");
+                    svBusy(SV_REQ_LOAD, SV_TXT("Loading.", "ロードちゅう"));
                 } else {
-                    svBusy(SV_REQ_WRITE, "Saving. Keep power on.");
+                    svBusy(SV_REQ_WRITE, SV_TXT("Saving. Keep power on.", "セーブちゅう。でんげんを きらないで"));
                 }
             }
             break;
@@ -719,15 +787,15 @@ static void svService() {
                 musicApuWrite(0x4005, 0x7F);
                 musicApuWrite(0x4006, 0);
                 musicApuWrite(0x4007, 0);
-                svResult("Save complete!");
+                svResult(SV_TXT("Save complete!", "セーブしました!"));
             } else {
                 sfxError();
-                svResult("Save failed. Try again.");
+                svResult(SV_TXT("Save failed. Try again.", "セーブできませんでした。"));
             }
             break;
         case SV_REQ_LOAD:
             sfxError();
-            svResult("Load failed.");
+            svResult(SV_TXT("Load failed.", "ロードできませんでした。"));
             break;
     }
 }
@@ -762,7 +830,7 @@ void save_draw() {
                 continue;
             }
             for(Uint8 i = 0; i < 4; i++) {
-                Uint8 col = (i & 1) ? 16 : 1;
+                Uint8 col = (i & 1) ? SV_RIGHT_COL : 1;
                 Uint8 row = svSlotTop(s) + 1 + (i >> 1) * 3;
                 svDrawSprite(&svSprites[s * 4 + i], &svSlotData[s].party[i], (col + CENTER_ADJUSTMENT) * 8, row * 8);
             }

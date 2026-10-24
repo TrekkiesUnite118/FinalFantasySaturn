@@ -10,6 +10,7 @@
 #define OVERWORLD_H
 #include "datatypes.h"
 #include "types.h"
+#include "romaddr.h"
 
 
 //Battle types for determineBattleDomain.
@@ -41,21 +42,8 @@ extern Uint16 decompressedMap[256][256];
 //RBG0 map plane filled by update_plane.
 extern Uint16 mapPlane[32][32];
 
-//ROM addresses of the compressed map.
-extern const int OVERWORLDMAP_OFFSET;
-extern const int OVERWORLDMAP_PTRADD;
-extern const int OVERWORLDMAP_START;
-extern const int OVERWORLDMAP_END; 
-
-//ROM addresses of the tile layouts (TSA), the palette and the tiles.
-extern const int OVERWORLD_TSA;
-extern const int OVERWORLD_PALETTE;
-extern const int OVERWORLD_CHR;
 #define OVERWORLD_COLORS (32)
 #define OVERWORLD_CHR_SIZE (0x1000)
-
-//ROM address of the tile properties, 2 bytes per tile.
-extern const int OVERWORLD_TILEDATA;
 
 
 /**

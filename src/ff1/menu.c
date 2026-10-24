@@ -11,8 +11,6 @@
 #include "magic.h"
 #include "dialog.h"
 
-#define BATTLE_PALETTE_TABLE (0x00230F30)
-
 Uint16 menuPlane[64][64] = {{0x00FF}};
 
 Uint8 boarderPalette_black[4] = {0x0F, 0x00, 0x0F, 0x30};
@@ -206,6 +204,80 @@ Uint8 lut_DTE2[80] = { 0xFF,0xB7,0xAB,0xA8,  0xFF,0xB1,0xA4,0xFF,  0xB1,0xA8,0xB
                         0xB1,0xA7,0xB1,0xAC,  0xA8,0xB6,0xA7,0xA4,  0xB0,0xA9,0xFF,0xA8,  0xBA,0xFF,0xA8,0xB0,
                         0x92,0xFF,0xA9,0xB2,  0xAF,0xB3,0xBC,0xA4,  0x8A,0xA8,0xFF,0xB5,  0xB2,0xAC,0xFF,0xAB,
                         0xA8,0xB7,0xAC,0xA4,  0xA6,0xAF,0xA8,0xAF,  0xA8,0xB6,0xFF,0xAF,  0xA8,0xA7,0xAC,0xC3 };
+
+//NES EnterIntroStory's dest_y. The Japanese text is lower, and skips no rows.
+//Fade lines run from the first to before the end, like IntroStory_MainLoop's intro_ataddr
+//($23C0-$23F8 US, $23D0-$23F0 Japanese).
+#ifdef FF1_JP
+#define PRELUDE_TEXT_Y (9)
+#define PRELUDE_FIRST_LINE (9)
+#define PRELUDE_END_LINE (25)
+#else
+#define PRELUDE_TEXT_Y (3)
+#define PRELUDE_FIRST_LINE (1)
+#define PRELUDE_END_LINE (27)
+#endif
+
+#ifdef FF1_JP
+Uint8 jpKanaMark(Uint8 ch) {
+    return (ch >= 0x48 && ch < 0x7A) ? LUT_JP_KANA_MARK[ch - 0x48] : 0xFF;
+}
+
+Uint8 jpKanaBase(Uint8 ch) {
+    return (ch >= 0x48 && ch < 0x7A) ? LUT_JP_KANA_BASE[ch - 0x48] : ch;
+}
+
+//U+3000-U+30FF to the Japanese ROM's text codes, 0 if it has no tile.
+static const Uint8 jpKanaCodes[0x100] = {
+    0x00, 0x00, 0xB9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x8A, 0x00, 0x8B, 0x00, 0x8C, 0x00, 0x8D, 0x00, 0x8E, 0x8F, 0x48, 0x90, 0x49, 0x91,
+    0x4A, 0x92, 0x4B, 0x93, 0x4C, 0x94, 0x4D, 0x95, 0x4E, 0x96, 0x4F, 0x97, 0x50, 0x98, 0x51, 0x99,
+    0x52, 0x9A, 0x53, 0x7C, 0x9B, 0x54, 0x9C, 0x55, 0x9D, 0x56, 0x9E, 0x9F, 0xA0, 0xA1, 0xA2, 0xA3,
+    0x57, 0x70, 0xA4, 0x58, 0x71, 0xA5, 0x59, 0x72, 0xA6, 0x5A, 0x73, 0xA7, 0x5B, 0x74, 0xA8, 0xA9,
+    0xAA, 0xAB, 0xAC, 0x7D, 0xAD, 0x7E, 0xAE, 0x7F, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0x00, 0xB5,
+    0x00, 0x00, 0x7B, 0xB6, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0xB7, 0xCA, 0xB8, 0xCB, 0x00, 0xCC, 0xBA, 0xCD, 0xBB, 0xCE, 0xCF, 0x5C, 0xD0, 0x5D, 0xD1,
+    0x5E, 0xD2, 0x5F, 0xD3, 0x60, 0xD4, 0x61, 0xD5, 0x62, 0xD6, 0x63, 0xD7, 0x64, 0xD8, 0x65, 0xD9,
+    0x66, 0xDA, 0x67, 0xBC, 0xDB, 0x68, 0xDC, 0x69, 0xDD, 0x6A, 0xDE, 0xDF, 0xE0, 0xE1, 0xE2, 0xE3,
+    0x6B, 0x75, 0xE4, 0x6C, 0x76, 0xE5, 0x6D, 0x77, 0xE6, 0x6E, 0x78, 0xE7, 0x6F, 0x79, 0xE8, 0xE9,
+    0xEA, 0xEB, 0xEC, 0xBD, 0xED, 0xBE, 0xEE, 0xBF, 0xEF, 0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0x00, 0xF5,
+    0x00, 0x00, 0x00, 0xF6, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC2, 0x00, 0x00, 0x00,
+};
+
+Uint8 jpTextCode(const char **src) {
+    static const char latin[] = "LEHP";
+    const Uint8 *s = (const Uint8 *)*src;
+    Uint8 ch = *s++;
+    const char *l = ch ? strchr(latin, ch) : 0;
+    Uint8 code = 0xFF;
+
+    if((ch & 0xF0) == 0xE0 && s[0] && s[1]) {
+        Uint16 cp = ((ch & 0x0F) << 12) | ((s[0] & 0x3F) << 6) | (s[1] & 0x3F);
+        s += 2;
+        if(cp >= 0x3000 && cp <= 0x30FF && jpKanaCodes[cp - 0x3000]) {
+            code = jpKanaCodes[cp - 0x3000];
+        } else if(cp == 0x2025) {
+            //"‥"
+            code = 0xC3;
+        }
+    } else if(ch >= '0' && ch <= '9') {
+        code = 0x80 + (ch - '0');
+    } else if(l) {
+        code = 0xC6 + (l - latin);
+    } else if(ch == '!') {
+        code = 0xC4;
+    } else if(ch == '?') {
+        code = 0xC5;
+    } else if(ch == '/') {
+        code = 0x7A;
+    }
+    *src = (const char *)s;
+    return code;
+}
+#endif
                         
 Uint8 lut_BackdropOrder[] = {1,2,3,4,3,4,1,2,1,2,3,4,3,4};
 
@@ -216,7 +288,7 @@ SPRITE_INFO playerSel4;
 
 Uint8 canAnimatePrelude = TRUE;
 
-Uint8 currentPreludeLine = 1;
+Uint8 currentPreludeLine = PRELUDE_FIRST_LINE;
 Uint8 currentFrame = 0;
 Uint8 currentCycleIter = 0;
 
@@ -314,7 +386,9 @@ void drawBottomBoxLine(Uint8 xPos, Uint8 yPos, Uint8 width, Uint8 palNum) {
 
 void drawTextLine(Uint8 xPos, Uint8 yPos, Uint8 *stringPtr, Uint8 palNum, Uint8 lineSpacing) {
     Uint8 xPosStart = xPos + CENTER_ADJUSTMENT;
+#ifndef FF1_JP
     Uint16 tileVal  = 0;
+#endif
     Uint8 iter = xPosStart;
     Uint8 stringIter = 0;
     while(stringPtr[stringIter] != 0){
@@ -323,6 +397,16 @@ void drawTextLine(Uint8 xPos, Uint8 yPos, Uint8 *stringPtr, Uint8 palNum, Uint8 
             iter = xPosStart;
             stringIter++;
         } else {
+#ifdef FF1_JP
+            //Codes $02-$47 draw nothing.
+            Uint8 ch = stringPtr[stringIter++];
+            if(ch >= 0x48) {
+                if(jpKanaMark(ch) != 0xFF) {
+                    drawPlane[yPos - 1][iter] = (palNum << 12) | jpKanaMark(ch);
+                }
+                drawPlane[yPos][iter++] = (palNum << 12) | jpKanaBase(ch);
+            }
+#else
             tileVal = palNum << 12;
             if(stringPtr[stringIter] < 0x7A){
                 Uint8 dteVal = stringPtr[stringIter] - 0x1A;
@@ -344,24 +428,38 @@ void drawTextLine(Uint8 xPos, Uint8 yPos, Uint8 *stringPtr, Uint8 palNum, Uint8 
                 iter++;
                 stringIter++;
             }
+#endif
         }
     }
 }
 
 void drawPreludeTextLine(Uint8 xPos, Uint8 yPos, Uint8 *stringPtr, Uint8 palNum, Uint8 lineSpacing) {
     Uint8 xPosStart = xPos + CENTER_ADJUSTMENT;
+#ifndef FF1_JP
     Uint16 tileVal  = 0;
+#endif
     Uint8 iter = xPosStart;
     Uint8 stringIter = 0;
     while(stringPtr[stringIter] != 0){
         if(stringPtr[stringIter] == 1) {
             yPos += lineSpacing;
+#ifndef FF1_JP
             if(yPos == 15 || yPos == 20 ) {
                 yPos++;
             }
+#endif
             iter = xPosStart;
             stringIter++;
         } else {
+#ifdef FF1_JP
+            Uint8 ch = stringPtr[stringIter++];
+            if(ch >= 0x48) {
+                if(jpKanaMark(ch) != 0xFF) {
+                    menuPlane[yPos - 1][iter] = (palNum << 12) | jpKanaMark(ch);
+                }
+                menuPlane[yPos][iter++] = (palNum << 12) | jpKanaBase(ch);
+            }
+#else
             tileVal = palNum << 12;
             if(stringPtr[stringIter] < 0x7A){
                 Uint8 dteVal = stringPtr[stringIter] - 0x1A;
@@ -383,6 +481,7 @@ void drawPreludeTextLine(Uint8 xPos, Uint8 yPos, Uint8 *stringPtr, Uint8 palNum,
                 iter++;
                 stringIter++;
             }
+#endif
         }
     }
 }
@@ -510,9 +609,11 @@ void setupTitleScreen() {
     drawTextLine(12, 17, (Uint8 *)NEW_GAME_OFFSET, 0, 1);
     drawTextLine(9, 22, (Uint8 *)RESPOND_RATE_OFFSET, 0, 1);
 
+#ifndef FF1_JP
     //Copyright Text
     drawTextLine(8, 25, (Uint8 *)COPYRIGHT_1_OFFSET, 0, 1);
     drawTextLine(8, 26, (Uint8 *)COPYRIGHT_2_OFFSET, 0, 1);
+#endif
 
     partyInitBuff = (PARTY_GEN*) PARTY_GEN_OFFSET;
 
@@ -577,10 +678,10 @@ void setupPreludeScreen() {
         }
     }
 
-    drawPreludeTextLine(1, 3, (Uint8 *)PRELUDE_TEXT_OFFEST, 0, 2);
+    drawPreludeTextLine(1, PRELUDE_TEXT_Y, (Uint8 *)PRELUDE_TEXT_OFFEST, 0, 2);
 
     //A soft reset can come back here after an earlier prelude finished.
-    currentPreludeLine = 1;
+    currentPreludeLine = PRELUDE_FIRST_LINE;
     currentFrame = 0;
     currentCycleIter = 0;
 }
@@ -591,21 +692,26 @@ void preludeAnimate() {
     Uint8 charVal = 0;
     Uint8 palVal = 0;
     
-    if(currentPreludeLine < 27) {
+    if(currentPreludeLine < PRELUDE_END_LINE) {
         if(currentFrame == 15) {
             currentFrame = 0;
             currentCycleIter++;
             if(currentCycleIter == 4) {
+#ifndef FF1_JP
                 if(currentPreludeLine == 15 || currentPreludeLine == 20) {
                     currentPreludeLine++;
-                } else {
+                } else
+#endif
+                {
                    currentPreludeLine+=2;
                 }
                 currentCycleIter = 0;
             }
         } else {
+            //Japanese lines also fade their marks' row.
+            for(Uint8 row = currentPreludeLine - TEXT_MARK_ROWS; row <= currentPreludeLine; row++)
             for(Uint8 iter = 0; iter < 40; iter++) {
-                tileVal = menuPlane[currentPreludeLine][iter];
+                tileVal = menuPlane[row][iter];
                 charVal = tileVal & 0xFF;
                 palVal = 4;
 
@@ -633,7 +739,7 @@ void preludeAnimate() {
 
                 newTile = palVal << 12;
                 newTile += charVal;
-                menuPlane[currentPreludeLine][iter] = newTile;
+                menuPlane[row][iter] = newTile;
             }
         }
         
@@ -904,30 +1010,13 @@ void drawBattleMsg(Uint8 xPos, Uint8 yPos, Uint8 msg_id, Uint8 pal) {
 
 
 void drawMonstersPerished(Uint8 xPos, Uint8 yPos, Uint8 pal) {
-    Uint8 stringBuffer[21] = {0xFF};
-    
+    Uint8 stringBuffer[21];
+    Uint8 len = 0;
 
-    Uint16 tmpOffset = battleMsg_lut[BTLMSG_MONSTERS_ - 1];
-    btl_msg_offset = (tmpOffset >> 8) | (tmpOffset << 8);
-    btl_msg_offset -= 0x8C40;
-    Uint8 *monsters_msg_ptr = (Uint8*) BATTLE_MSG_TABLE;
-    monsters_msg_ptr += btl_msg_offset;
+    len = appendBattleMsg(stringBuffer, len, BTLMSG_MONSTERS_);
+    len = appendBattleMsg(stringBuffer, len, BTLMSG_PERISHED);
+    stringBuffer[len] = 0x00;
 
-    tmpOffset = battleMsg_lut[BTLMSG_PERISHED - 1];
-    btl_msg_offset = (tmpOffset >> 8) | (tmpOffset << 8);
-    btl_msg_offset -= 0x8C40;
-    Uint8 *perished_msg_ptr = (Uint8*) BATTLE_MSG_TABLE;
-    perished_msg_ptr += btl_msg_offset;
-
-    for(Uint8 i = 0; i < 9; i++) {
-        stringBuffer[i] = monsters_msg_ptr[i];
-    }
-
-    
-    for(Uint8 i = 0; i < 8; i++) {
-        stringBuffer[i + 9] = perished_msg_ptr[i];
-    }
-    
     drawTextLine(xPos, yPos++, stringBuffer, BATTLE_MENU_PALETTE, 1);
 
 }
@@ -1073,11 +1162,19 @@ static void drawComplexText(COMPLEX_POS *pos, Uint8 *str) {
 
     while(*str != 0x00) {
         Uint8 ch = *str++;
+#ifdef FF1_JP
+        if(ch >= 0x48) {
+            if(jpKanaMark(ch) != 0xFF) {
+                drawPlane[pos->y - 1][(Uint8)(pos->x + CENTER_ADJUSTMENT)] = (pos->pal << 12) | jpKanaMark(ch);
+            }
+            putComplexTile(pos, jpKanaBase(ch));
+#else
         if(ch >= 0x7A) {
             putComplexTile(pos, ch);
         } else if(ch >= 0x1A) {
             putComplexTile(pos, lut_DTE1[ch - 0x1A]);
             putComplexTile(pos, lut_DTE2[ch - 0x1A]);
+#endif
         } else if(ch == 0x01) {
             pos->x = pos->startX;
             pos->y += 2;
@@ -1092,8 +1189,11 @@ static void drawComplexText(COMPLEX_POS *pos, Uint8 *str) {
         } else if(ch >= 0x10 && ch <= 0x13) {
             drawCharStat(pos, &party[ch & 0x03], *str++);
         } else {
+            //The other codes are a single line break, or nothing on the Japanese ROM.
+#ifndef FF1_JP
             pos->x = pos->startX;
             pos->y += 1;
+#endif
         }
     }
 }

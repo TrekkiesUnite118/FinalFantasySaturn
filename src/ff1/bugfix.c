@@ -16,24 +16,145 @@
 #define BF_GREY (0x10)
 
 //Layout in NES tile coords. The boxes reach 3 tiles past each side of the NES screen.
+//Japanese lines need a free row above them for dakuten marks, which leaves no room for the title.
 #define BF_BOX_X (0xFD)
 #define BF_BOX_W (38)
 #define BF_TITLE_Y (1)
 #define BF_TITLE_H (3)
+#ifdef FF1_JP
+#define BF_LIST_Y (1)
+#define BF_LIST_H (20)
+#define BF_ROWS (9)
+#define BF_COLS (3)
+#define BF_COL_W (12)
+#define BF_DESC_Y (21)
+#define BF_DESC_H (8)
+#define BF_DESC_LINES (3)
+#define BF_NAME_W (10)
+#else
 #define BF_LIST_Y (4)
 #define BF_LIST_H (15)
 #define BF_ROWS (13)
-#define BF_COL_X0 (0)
-#define BF_COL_X1 (18)
+#define BF_COLS (2)
+#define BF_COL_W (18)
 #define BF_DESC_Y (19)
 #define BF_DESC_H (10)
-#define BF_DESC_X (0xFF)
 #define BF_DESC_LINES (6)
-#define BF_DESC_W (34)
 #define BF_NAME_W (15)
+#endif
+#define BF_ROW_H (TEXT_MARK_ROWS + 1)
+#define BF_DESC_X (0xFF)
+#define BF_DESC_W (34)
 //The cursor sits 2 tiles left of the text.
 #define BF_CURSOR_X(x) (((Sint32)(x) - 2 + CENTER_ADJUSTMENT) * 8)
 
+#ifdef FF1_JP
+static const char *bfNames[BUGFIX_COUNT] = {
+    "クリティカルりつ",
+    "ぶきの こうか",
+    "モンクの アーマー",
+    "てきの たいせい",
+    "ストライ/セーバー",
+    "シェイプ/シェイラ",
+    "アンデッドはんてい",
+    "れんぞくレベルアップ",
+    "ミスの ついかこうか",
+    "こんらんの じめつ",
+    "ぜんたいまほう",
+    "てきの ぞくせい",
+    "てきの ねむり",
+    "アップの ひょうじ",
+    "ならびかえ",
+    "こうどうじゅん",
+    "ふいうちの ターン",
+    "いしと どく",
+    "ちんもくと アイテム",
+    "フィールドケアルガ",
+    "たからばこと 99こ",
+    "ギルの じょうげん",
+    "エンカウントちいき",
+    "にげる かくりつ",
+    "ちせい"
+};
+
+static const char *bfDescs[BUGFIX_COUNT][BF_DESC_LINES] = {
+    {"クリティカルりつに ぶきの のうりょくちではなく",
+     "アイテムの ばんごうが つかわれる。",
+     "しゅうせい‥‥そうびした ぶきの あたいを つかう。"},
+    {"ぶきの ぞくせいや とくこうが だげきに はんえいされない。",
+     "しゅうせい‥‥そうびした ぶきの ぞくせいと",
+     "とくこうが きくように なる。"},
+    {"レベルアップのとき すでの モンクけいは アーマーが",
+     "レベルと おなじになり ぼうぐの アーマーが きえる。",
+     "しゅうせい‥‥ぼうぐが ないときだけ。"},
+    {"デスペルや たいせいまほうで てきの たいせいが",
+     "かわっても はんえいされない。",
+     "しゅうせい‥‥へんかが はんえいされる。"},
+    {"ストライと セーバーは こうげきりょくが",
+     "よみこまれず ほぞんも されないため こうかがない。",
+     "しゅうせい‥‥こうげきりょくが あがる。"},
+    {"シェイプと シェイラは かならず はずれ",
+     "てきの かいひりつが さがらない。",
+     "しゅうせい‥‥あたれば かいひりつが さがる。"},
+    {"ディアけいは キャラの クラスを しゅぞくと よみちがえ",
+     "スーパーモンクと まどうしが アンデッドに なる。",
+     "しゅうせい‥‥みかたは アンデッドに ならない。"},
+    {"いちどの せんとうで あがる レベルは 1だけ。",
+     "しゅうせい‥‥けいけんちが あるかぎり",
+     "レベルが あがりつづける。"},
+    {"いちど あたると おなじ こうげきの ミスでも",
+     "じょうたいいじょうが はっせいする。",
+     "しゅうせい‥‥あたったときだけ はっせい。"},
+    {"さいごの てきが こんらんして じめつしても",
+     "すぐに せんとうが おわらない。",
+     "しゅうせい‥‥まいターン おわりを チェックする。"},
+    {"てきが なかま ぜんたいに かける まほうは",
+     "かけた ほんにんには きかない。",
+     "しゅうせい‥‥ほんにんにも きく。"},
+    {"てきは じぶんの じゃくてんの ぞくせいで こうげきする。",
+     "ウィンターウルフは ほのお。",
+     "しゅうせい‥‥てきの こうげきは むぞくせい。"},
+    {"ねむった てきは へんな あたいで はんていされ",
+     "つぎの ターンで めざめる。",
+     "しゅうせい‥‥みかたと おなじく さいだいHPで はんてい。"},
+    {"レベルアップのとき 99の のうりょくも",
+     "アップしたと ひょうじされる。",
+     "しゅうせい‥‥あがった ものだけ ひょうじする。"},
+    {"せんとうふのうの なかまを うしろに さげるとき",
+     "ちがう ばしょを いれかえ じゅんばんが くずれる。",
+     "しゅうせい‥‥ただしく ならびかえる。"},
+    {"こうどうじゅんは 16かいの ランダムな いれかえで",
+     "きまるため みかたが あとに なりやすい。",
+     "しゅうせい‥‥こうへいな シャッフル。"},
+    {"モンスターの せんせいこうげきの ターンに",
+     "ねむりや まひの なかまが かいふくする ことがある。",
+     "しゅうせい‥‥その ターン みかたは こうどうできない。"},
+    {"いしに なった キャラクターも どくで HPが へる。",
+     "しゅうせい‥‥いしの あいだは どくの ダメージなし。",
+     ""},
+    {"ちんもくすると まほうだけでなく",
+     "くすりと もちものも つかえなくなる。",
+     "しゅうせい‥‥まほうだけ ふうじる。"},
+    {"せんとういがいの ケアルガで せんとうふのうや",
+     "いしの キャラクターの HPも かいふくする。",
+     "しゅうせい‥‥その キャラクターは えらべない。"},
+    {"アイテムが 99こで とれなくても",
+     "たからばこが あいたことに なる。",
+     "しゅうせい‥‥たからばこは あかないまま。"},
+    {"ばあいによって ギルが じょうげんの 999999を こえる。",
+     "しゅうせい‥‥つねに じょうげんで とまる。",
+     ""},
+    {"フィールドで でる てきが すすむ さきではなく",
+     "いまいる ばしょで きまる。",
+     "しゅうせい‥‥すすんだ さきの ばしょで きまる。"},
+    {"にげるとき ちがう あたいを レベルとして よむため",
+     "まえの なかまほど にげやすく さいごは ほぼ にげられない。",
+     "しゅうせい‥‥にげる ひとの こううんと レベル。"},
+    {"ちせいが まほうに えいきょうしない。",
+     "しゅうせい‥‥まほうに アドバンスばんの しきを つかう。",
+     "クリティカルしゅうせいと あわせ まほうつかいが ゆうりに なる。"}
+};
+#else
 static const char *bfNames[BUGFIX_COUNT] = {
     "Critical Rate",
     "Weapon Effects",
@@ -216,6 +337,7 @@ static const char *bfDescs[BUGFIX_COUNT][BF_DESC_LINES] = {
 };
 
 static const char bfTitle[] = "BUG FIXES";
+#endif
 
 Uint8 bugFixes[BUGFIX_BYTES];
 
@@ -223,6 +345,20 @@ static Uint8 bfCursor;
 static Uint8 bfPrevDir;
 static PadBits bfPadPrev;
 
+#ifdef FF1_JP
+//UTF-8 to the Japanese ROM's text codes, padded with spaces to len.
+static void bfText(Uint8 *dst, const char *src, Uint8 len) {
+    Uint8 i = 0;
+
+    for(; *src && i < len; i++) {
+        dst[i] = jpTextCode(&src);
+    }
+    for(; i < len; i++) {
+        dst[i] = 0xFF;
+    }
+    dst[len] = 0x00;
+}
+#else
 //ASCII to the NES menu font, padded with spaces to len.
 static void bfText(Uint8 *dst, const char *src, Uint8 len) {
     Uint8 i = 0;
@@ -252,6 +388,7 @@ static void bfText(Uint8 *dst, const char *src, Uint8 len) {
     }
     dst[len] = 0x00;
 }
+#endif
 
 static void bfDrawText(Uint8 x, Uint8 y, const char *str, Uint8 len, Uint8 pal) {
     Uint8 buffer[BF_DESC_W + 1];
@@ -261,11 +398,11 @@ static void bfDrawText(Uint8 x, Uint8 y, const char *str, Uint8 len, Uint8 pal) 
 }
 
 static Uint8 bfX(Uint8 id) {
-    return id < BF_ROWS ? BF_COL_X0 : BF_COL_X1;
+    return (id / BF_ROWS) * BF_COL_W;
 }
 
 static Uint8 bfY(Uint8 id) {
-    return BF_LIST_Y + 1 + (id % BF_ROWS);
+    return BF_LIST_Y + 1 + TEXT_MARK_ROWS + (id % BF_ROWS) * BF_ROW_H;
 }
 
 static void bfDrawName(Uint8 id) {
@@ -274,7 +411,12 @@ static void bfDrawName(Uint8 id) {
 
 static void bfDrawDesc() {
     for(Uint8 i = 0; i < BF_DESC_LINES; i++) {
-        bfDrawText(BF_DESC_X, BF_DESC_Y + 2 + i, bfDescs[bfCursor][i], BF_DESC_W, BF_PAL_ON);
+        Uint8 y = BF_DESC_Y + 2 + i * BF_ROW_H;
+        if(TEXT_MARK_ROWS) {
+            //Clears the previous description's marks.
+            bfDrawText(BF_DESC_X, y - 1, "", BF_DESC_W, BF_PAL_ON);
+        }
+        bfDrawText(BF_DESC_X, y, bfDescs[bfCursor][i], BF_DESC_W, BF_PAL_ON);
     }
 }
 
@@ -285,8 +427,10 @@ void setupBugFixScreen() {
     }
     menu_pal_1[3] = nes_pal[BF_GREY];
 
+#ifndef FF1_JP
     drawBox(BF_BOX_X, BF_TITLE_Y, BF_BOX_W, BF_TITLE_H, BF_PAL_ON);
     bfDrawText(BF_DESC_X, BF_TITLE_Y + 1, bfTitle, sizeof(bfTitle) - 1, BF_PAL_ON);
+#endif
     drawBox(BF_BOX_X, BF_LIST_Y, BF_BOX_W, BF_LIST_H, BF_PAL_ON);
     drawBox(BF_BOX_X, BF_DESC_Y, BF_BOX_W, BF_DESC_H, BF_PAL_ON);
 
@@ -315,11 +459,13 @@ static void bfMoveCursor() {
     if(!dir) {
         return;
     }
-    if(PadData1 & (PAD_L | PAD_R)) {
-        col ^= 1;
+    if(PadData1 & PAD_L) {
+        col = col > 0 ? col - 1 : BF_COLS - 1;
+    } else if(PadData1 & PAD_R) {
+        col = col + 1 < BF_COLS ? col + 1 : 0;
     }
-    //The right column can be shorter.
-    Uint8 rows = col ? BUGFIX_COUNT - BF_ROWS : BF_ROWS;
+    //The last column can be shorter.
+    Uint8 rows = col == BF_COLS - 1 ? BUGFIX_COUNT - col * BF_ROWS : BF_ROWS;
     if(row >= rows) {
         row = rows - 1;
     }

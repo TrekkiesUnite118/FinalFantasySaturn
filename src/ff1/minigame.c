@@ -11,14 +11,7 @@
 #include "dialog.h"
 #include "story.h"
 #include "minigame.h"
-
-#define BANK_0D (LWRAM + 0x10 + (0x0D * 0x4000))
-#define BANK_0F (LWRAM + 0x10 + (0x0F * 0x4000))
-#define NES_ADDR(bank, addr) ((Uint8 *)(bank) + ((addr) & 0x3FFF))
-
-#define LUT_MINIGAME_CHR NES_ADDR(BANK_0D, 0x9E00)
-#define LUT_PUZZLE_START NES_ADDR(BANK_0D, 0xAFB8)
-#define LUT_RNG NES_ADDR(BANK_0F, 0xF100)
+#include "romaddr.h"
 
 #define MG_BOX_X (8)
 #define MG_BOX_Y (5)

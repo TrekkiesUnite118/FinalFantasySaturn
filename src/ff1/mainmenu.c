@@ -17,7 +17,6 @@
 #include "music.h"
 #include "bugfix.h"
 
-#define ORB_CHR (0x00237610)
 #define ORB_CHR_SIZE (0x200)
 #define ORB_TILE_START (0x60)
 #define ORB_UNLIT_TILE (0x76)
@@ -27,6 +26,21 @@
 //Port palettes. NES palette 3 (blue border) is port palette 0, NES palette 0 (lit orbs) is port palette 1.
 #define MM_PAL_BORDER (0)
 #define MM_PAL_ORB (1)
+//The equip menu's NES palettes 1 (title) and 2 (selected mode). The US ROM gives them the border's colors.
+#define MM_PAL_EQ_TITLE (1)
+#define MM_PAL_EQ_MODE (2)
+//Colored equip menu words. The US build uses the Japanese ROM's colors, over each whole word,
+//since the English words don't fit the NES's 4 tile attribute areas.
+#ifdef FF1_JP
+#define EQ_TITLE_W (4)
+#define EQ_MODE_X(i) (0x0C + (i) * 6)
+#define EQ_MODE_W(i) (4)
+#else
+#define EQ_TITLE_W (5)
+#define EQ_MODE_X(i) (0x0B + (i) * 7)
+#define EQ_MODE_W(i) ((i) == 2 ? 4 : 5)
+static const Uint8 eqMenuPal[12] = {0x0F, 0x30, 0x01, 0x22, 0x0F, 0x00, 0x01, 0x37, 0x0F, 0x00, 0x01, 0x16};
+#endif
 
 //The NES layout shifted 2 tiles left, with the character boxes 2 tiles wider for 6 character names.
 #define MM_CHAR_BOX_W (0x0C)
@@ -83,7 +97,11 @@ static SPRITE_INFO mmSprites[4];
 static Uint8 mmMode;
 static Uint8 mmCursor;
 
+#ifdef FF1_JP
+static const Uint8 mmSaveText[] = {0xFF, 0xD7, 0xC2, 0x6D, 0x00}; //" セーブ"
+#else
 static const Uint8 mmSaveText[] = {0xFF, 0x9C, 0x8A, 0x9F, 0x8E, 0x00};
+#endif
 static Uint8 mmPrevDir;
 static PadBits mmPadPrev;
 static Uint8 mmTarget;
@@ -159,10 +177,6 @@ static Uint8 mgIntHeal; //Intelligence fix: each target also gets rand[0, Luck /
 static Uint8 mgDescOpen;
 
 static Uint8 targetCursorX[4] = {0x10, 0x48, 0x80, 0xB8};
-
-#define WEAPON_PERMISSIONS (0x0023BF60)
-#define ARMOR_PERMISSIONS (0x0023BFB0)
-#define ARMOR_TYPES (0x0023BCE1)
 
 #define EQUIP_WEAPON_TITLE_TEXT (0x34)
 #define EQUIP_ARMOR_TITLE_TEXT (0x3E)
@@ -292,7 +306,11 @@ static void drawCharBoxBody(Uint8 member, Uint8 x, Uint8 y) {
         buffer[8] = 0x00;
         drawComplexString(x, y + 9, buffer, MM_PAL_BORDER);
 
+#ifdef FF1_JP
+        Uint8 magic[4] = {0xA8, 0xA7, 0x8C, 0x00};
+#else
         Uint8 magic[4] = {0x52, 0x4A, 0x8C, 0x00};
+#endif
         drawComplexString(x, y + 8, magic, MM_PAL_BORDER);
     }
 
@@ -1001,10 +1019,35 @@ static Uint8 isEquipLegal(Uint8 item) {
     return TRUE;
 }
 
+//Sets the palette of a 2 row high area of the equip menu's top boxes, like the NES attribute writes.
+static void setEquipAttrib(Uint8 x, Uint8 width, Uint8 pal) {
+    for(Uint8 y = 2; y < 4; y++) {
+        for(Uint8 i = 0; i < width; i++) {
+            Uint16 *tile = &drawPlane[y][x + i + CENTER_ADJUSTMENT];
+            *tile = (*tile & 0x0FFF) | (pal << 12);
+        }
+    }
+}
+
+//NES UpdateEquipMenuModeAttrib.
+static void updateEquipModeAttrib() {
+    for(Uint8 i = 0; i < 3; i++) {
+        setEquipAttrib(EQ_MODE_X(i), EQ_MODE_W(i), (i == eqModeCursor) ? MM_PAL_EQ_MODE : MM_PAL_BORDER);
+    }
+}
+
 //NES EnterEquipMenu.
 void setupEquipScreen() {
+#ifdef FF1_JP
+    const Uint8 *menuPal = (Uint8 *)LUT_MENU_PALETTES;
+#else
+    const Uint8 *menuPal = eqMenuPal;
+#endif
+
     for(Uint8 i = 0; i < 4; i++) {
         menu_pal_0[i] = nes_pal[boarderPalette_blue[i]];
+        menu_pal_1[i] = nes_pal[menuPal[4 + i]];
+        menu_pal_2[i] = nes_pal[menuPal[8 + i]];
     }
     sortEquipmentList();
 
@@ -1012,6 +1055,8 @@ void setupEquipScreen() {
     drawComplexString(0x02, 0x03, getMenuString(eqArmor ? EQUIP_ARMOR_TITLE_TEXT : EQUIP_WEAPON_TITLE_TEXT), MM_PAL_BORDER);
     drawBox(0x08, 0x01, 0x17, 0x04, MM_PAL_BORDER);
     drawComplexString(0x09, 0x03, getMenuString(EQUIP_MODE_TEXT), MM_PAL_BORDER);
+    //NES DrawEquipMenu's title attributes.
+    setEquipAttrib(0x02, EQ_TITLE_W, MM_PAL_EQ_TITLE);
 
     //The name boxes are 2 tiles wider to the left for 6 character names.
     for(Uint8 i = 0; i < 4; i++) {
@@ -1076,6 +1121,7 @@ void doEquipMenu() {
     mmPadPrev = PadData1;
     //NES EquipMenuFrame increments the framecounter twice.
     nesFrameCounter++;
+    updateEquipModeAttrib();
 
     Uint8 a = (pressed & (PAD_A | PAD_C)) != 0;
     Uint8 b = (pressed & PAD_B) != 0;

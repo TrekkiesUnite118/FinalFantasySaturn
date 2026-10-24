@@ -12,15 +12,8 @@
 #define SHOP_H
 
 #include "types.h"
+#include "romaddr.h"
 
-#define LUT_SHOP_STRINGS (0x00238010) //Bank $0E $8000, pointer table then strings.
-#define LUT_SHOP_DATA (0x00238310) //Bank $0E $8300, pointers to each shop's inventory.
-#define SHOP_BANK_ADD (0x00238010 - 0x8000)
-#define LUT_SHOP_BOX (0x0023AC50) //X, Y, width and height tables, 5 boxes each.
-#define LUT_SHOPKEEP_IMAGE (0x0023ACAC) //10x10 tiles.
-#define LUT_SHOP_PALETTES (0x0023EB84) //Title and gold box palettes.
-#define LUT_SHOP_TYPES (0x0023EBC5)
-#define SHOP_CHR (0x00224010) //Bank $09 $8000, shop CHR followed by the menu CHR.
 #define SHOP_BACKDROP_PAL (0x40) //Shop palettes in the battle backdrop palette table.
 
 #define SHOP_ID_CARAVAN (70)

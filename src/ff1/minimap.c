@@ -14,25 +14,14 @@
 #include "minimap.h"
 #include "music.h"
 
-#define MINIMAP_NT (0x00227010)
-#define MINIMAP_DECOR_CHR (0x00227410)
-#define MINIMAP_TITLE_CHR (0x00227710)
-#define MINIMAP_TITLE_DEST_LO (0x00227B9A)
-#define MINIMAP_TITLE_DEST_HI (0x00227BC2)
-#define MINIMAP_BITPLANE_LUT (0x00227CE9)
-#define MINIMAP_DECOR_DEST_LO (0x00227CF9)
-#define MINIMAP_DECOR_DEST_HI (0x00227D29)
-#define MINIMAP_SPRITE_CHR (0x00227F10)
-#define MINIMAP_BG_PAL (0x00227F30)
-#define MINIMAP_TILESET (0x00227F90)
-
 #define MINIMAP_DECOR_TILES (0x30)
 #define MINIMAP_TITLE_TILES (0x28)
 #define MINIMAP_MAX_MARKERS (63)
 
 //Unused sprite character numbers and CRAM bank.
-#define MINIMAP_HERE_CHAR (254)
-#define MINIMAP_MARKER_CHAR (255)
+//After the overworld player's 96 characters at mapSpriteStart.
+#define MINIMAP_HERE_CHAR (mapSpriteStart + 96)
+#define MINIMAP_MARKER_CHAR (mapSpriteStart + 97)
 #define MINIMAP_SPRITE_CRAM (144)
 
 extern Uint8 current_x_pos;

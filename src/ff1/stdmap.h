@@ -12,29 +12,13 @@
 
 #include "types.h"
 #include "video.h"
+#include "romaddr.h"
 
-//ROM tables.
-#define LUT_ENTR_TELE_X (0x00202C10)
-#define LUT_ENTR_TELE_Y (0x00202C30)
-#define LUT_ENTR_TELE_MAP (0x00202C50)
-#define LUT_EXIT_TELE_X (0x00202C70)
-#define LUT_EXIT_TELE_Y (0x00202C80)
-#define LUT_TILESETS (0x00202CD0)
-#define LUT_NORM_TELE_X (0x00202D10)
-#define LUT_NORM_TELE_Y (0x00202D50)
-#define LUT_NORM_TELE_MAP (0x00202D90)
-#define LUT_SM_PTR_TBL (0x00210010) //16-bit offsets from the start of bank 4.
-#define LUT_SM_TILESET_ATTR (0x00200410)
-#define LUT_SM_TILESET_PROP (0x00200810)
-#define LUT_SM_TILESET_TSA (0x00201010)
-#define LUT_SM_PALETTES (0x00202010)
-#define SM_TILESET_CHR (0x0020C010)
 //A0: NBG0 char. A1: NBG2 char, NBG0 PN. B0: NBG2 PN.
 #define SM_NBG0_CHAR (VID_VRAM_A0)
 #define SM_NBG2_CHAR (VID_VRAM_A1)
 #define SM_NBG0_PN (VID_VRAM_A1 + 0x2000)
 #define SM_NBG2_PN (VID_VRAM_B0)
-#define LUT_BATTLE_RATES (0x0022CC10) //Bank $0B $8C00, X/256 encounter chance per map, +1 for the overworld entry.
 #define SM_DOMAIN_START (0x40) //Standard map battle domains follow the 8x8 overworld ones.
 
 //NES standard map tile property bits.

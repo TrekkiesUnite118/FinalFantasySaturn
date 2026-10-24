@@ -27,6 +27,12 @@ static Uint8 dlgItemId; //NES dlg_itemid, the item named by code $02.
 static Uint8 dlgX;
 static Uint8 dlgY;
 static Uint8 dlgStall; //NES tmp+7, DTE codes until the next frame stall.
+//DTE codes, or Japanese kana with marks, between frame stalls.
+#ifdef FF1_JP
+#define DLG_STALL (5)
+#else
+#define DLG_STALL (10)
+#endif
 static Uint8 dlgFrames;
 
 //NES AddGPToParty. The bytes are compared separately, so a high byte over the max
@@ -101,15 +107,33 @@ static void dlgDrawText(Uint8 *str) {
     Uint8 ch;
 
     while((ch = *str++) != 0x00) {
+#ifdef FF1_JP
+        if(ch >= 0x48) {
+            //Kana with a mark are drawn on two rows, and stall like DTE codes.
+            if(jpKanaMark(ch) != 0xFF) {
+                drawPlane[dlgY - 1][dlgX + CENTER_ADJUSTMENT] = (DLG_BOX_PAL << 12) | jpKanaMark(ch);
+                if(--dlgStall == 0) {
+                    dlgStall = DLG_STALL;
+                    dlgFrames++;
+                }
+            }
+            dlgPutTile(jpKanaBase(ch));
+        } else if(ch == 0x01) {
+            dlgStall = DLG_STALL;
+            dlgFrames++;
+            dlgX = DLG_TEXT_X;
+            dlgY += 2;
+#else
         if(ch >= 0x7A) {
             dlgPutTile(ch);
         } else if(ch >= 0x1A) {
             dlgPutTile(lut_DTE1[ch - 0x1A]);
             dlgPutTile(lut_DTE2[ch - 0x1A]);
             if(--dlgStall == 0) {
-                dlgStall = 10;
+                dlgStall = DLG_STALL;
                 dlgFrames++;
             }
+#endif
         } else if(ch == 0x02) {
             dlgDrawText(getItemName(dlgItemId));
         } else if(ch == 0x03) {
@@ -119,10 +143,13 @@ static void dlgDrawText(Uint8 *str) {
             }
             return;
         } else {
+            //The other codes are a line break, or nothing on the Japanese ROM.
+#ifndef FF1_JP
             dlgStall = 8;
             dlgFrames++;
             dlgX = DLG_TEXT_X;
             dlgY++;
+#endif
         }
     }
 }
@@ -136,7 +163,7 @@ Uint8 dlgDraw(Uint8 dlgId) {
     drawBox(DLG_BOX_X, DLG_BOX_Y, DLG_BOX_WIDTH, DLG_BOX_HEIGHT, DLG_BOX_PAL);
     dlgX = DLG_TEXT_X;
     dlgY = DLG_TEXT_Y;
-    dlgStall = 10;
+    dlgStall = DLG_STALL;
     dlgFrames = 1;
     dlgDrawText((Uint8 *)DIALOGUE_BANK_ADD + (ptr[0] | (ptr[1] << 8)));
     drawPlane = saved;

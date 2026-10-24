@@ -30,13 +30,6 @@
 #define LEFT (FIXED(2))
 #define RIGHT (FIXED(3))
 
-#define WARRIOR_START_STAT_OFFSET (0x00203050)
-#define THIEF_START_STAT_OFFSET (0x00203060)
-#define MONK_START_STAT_OFFSET (0x00203070)
-#define REDMAGE_START_STAT_OFFSET (0x00203080)
-#define WMAGE_START_STAT_OFFSET (0x00203090)
-#define BMAGE_START_STAT_OFFSET (0x002030A0)
-
 #define WARRIOR_VALUE (0)
 #define THIEF_VALUE (1)
 #define MONK_VALUE (2)
@@ -86,13 +79,11 @@
 #define OW_SPR_Y_ADD (0)
 
 //NES LoadOWObjectCHR, sprite tiles $10-$6F, as 16x8 halves in the standard map object slots.
-#define OW_OBJ_CHR (0x00209C10)
 #define OW_OBJ_CHR_SIZE (0x600)
 #define OW_OBJ_TILE_START (0x10)
 #define OW_OBJ_CHAR_START (384)
 #define OW_VEHICLE_CRAM (160) //NES sprite palette 2.
 #define OW_OBJECT_CRAM (176) //NES sprite palette 3.
-#define OW_SPRITE_PAL (0x002003A0)
 
 //Tile additives for the vehicle and object tables.
 #define OW_TILE_SHIP (0x20)
@@ -119,7 +110,7 @@ enum {
 //The takeoff and landing move the airship every other frame.
 #define OW_AIR_ANIM_FRAMES ((OW_SPR_Y_BOAT - OW_SPR_Y_AIRSHIP) * 2)
 
-#define FRAME_STAND (169)
+#define FRAME_STAND (mapSpriteStart) //96 characters, 8 per class.
 #define FRAME_WALK1 (FRAME_STAND + 1)
 #define FRAME_STAND2 (FRAME_STAND + 2)
 #define FRAME_WALK2 (FRAME_STAND + 3)
@@ -139,7 +130,12 @@ enum {
 #define NAME_LETTER_MIN_Y (FIXED(80))
 
 #define NAME_LETTER_MAX_X (FIXED(208))
+//7 rows of letters, or 9 on the Japanese ROM.
+#ifdef FF1_JP
+#define NAME_LETTER_MAX_Y (FIXED(208))
+#else
 #define NAME_LETTER_MAX_Y (FIXED(176))
+#endif
 
 #define BAT_MENU_MIN_X (FIXED(120))
 #define BAT_MENU_MAX_X (FIXED(168))
@@ -340,20 +336,13 @@ static Uint8 palCycFrame;
 static Uint8 palCycReverse;
 static Uint8 palCycNextState;
 
-Uint8 *response_rate_lut = (Uint8 *)0x0022DA32;
+Uint8 *response_rate_lut = (Uint8 *)RESPONSE_RATE_LUT;
 
 Uint8 drawBattleCursor = FALSE;
 Uint8 drawTargetNames = FALSE;
 
 Uint8 rotated = FALSE;
 
-Uint8 char_name_screen_lookup_table[70] =  { 0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F, 0x90, 0x91, 0x92, 0x93,
-                                            0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9D,
-                                            0x9E, 0x9F, 0xA0, 0xA1, 0xA2, 0xA3, 0xBE, 0xBF, 0xC0, 0xFF,
-                                            0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89,
-                                            0xA4, 0xA5, 0xA6, 0xA7, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD,
-                                            0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6, 0xB7,
-                                            0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xC2, 0xC3, 0xC4, 0xC5};
 
 Uint32 pal_3[] = {
 	0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
@@ -638,7 +627,7 @@ static void titlePtyGenJoy() {
     } else if(state == CHAR_SELECT_STATE || state == CHAR_NAME_STATE) {
         if(pressed & (PAD_A | PAD_B | PAD_C)) {
             sfxMenuSel();
-        } else if(newDir) {
+        } else if(newDir && !(state == CHAR_SELECT_STATE && cur_char_create == 4)) {
             sfxMenuMove();
         }
     }
@@ -749,9 +738,10 @@ void player_input() {
         ignoreC = 1;
     }
 
-    if (PadData1 & PAD_L) {    
-    
-        if(state == CHAR_SELECT_STATE) {
+    if (PadData1 & PAD_L) {
+
+        //After the 4th name, the NES only waits for A or B.
+        if(state == CHAR_SELECT_STATE && cur_char_create < 4) {
             if(!canUpdateValue){
                 decrementPartyInitBuff(cur_char_create);
                 if(party[cur_char_create].char_class == 0) {
@@ -798,7 +788,7 @@ void player_input() {
     }
     else if (PadData1 & PAD_R) {
 
-        if(state == CHAR_SELECT_STATE) {
+        if(state == CHAR_SELECT_STATE && cur_char_create < 4) {
             if(!canUpdateValue){
                 incrementPartyInitBuff(cur_char_create);
                 if(party[cur_char_create].char_class == 5) {
@@ -2575,7 +2565,7 @@ static const Uint8 magicCursorXPos[3] = {0x20, 0x48, 0x70};
 static const Uint8 magicCursorYPos[4] = {0xA6, 0xB6, 0xC6, 0xD6};
 static const Uint8 partyTargetCursorYPos[4] = {0x34, 0x4C, 0x64, 0x7C};
 
-static Uint8 nothingText[8] = {0x97, 0xB2, 0xB7, 0xAB, 0xAC, 0xB1, 0xAA, 0x00};
+static Uint8 *nothingText = (Uint8 *)DATA_NOTHING_TEXT;
 
 static void setMagicCursor() {
     cursor.xPos = FIXED(magicCursorXPos[magicCursorX] + 24);
@@ -4469,6 +4459,24 @@ void determine_curr_char() {
                 case BMAGE_VALUE:
                     currentChar = BMAGE_OFFSET;
                     break;
+                case KNIGHT_VALUE:
+                    currentChar = KNIGHT_OFFSET;
+                    break;
+                case NINJA_VALUE:
+                    currentChar = NINJA_OFFSET;
+                    break;
+                case MASTER_VALUE:
+                    currentChar = MASTER_OFFSET;
+                    break;
+                case REDWIZ_VALUE:
+                    currentChar = REDWIZ_OFFSET;
+                    break;
+                case WHWIZ_VALUE:
+                    currentChar = WHWIZ_OFFSET;
+                    break;
+                case BLWIZ_VALUE:
+                    currentChar = BLWIZ_OFFSET;
+                    break;
                 default:
                     currentChar = WARRIOR_OFFSET;
                     break;
@@ -4569,7 +4577,8 @@ void performActionButtonInput() {
                 selected_class = party[cur_char_create].char_class;
         }
     }  else if(state == CHAR_NAME_STATE) {
-        nameBuffer[cur_letter_index] = char_name_screen_lookup_table[cur_letter];
+        //NES lut_NameInput, letters separated by spaces and line breaks.
+        nameBuffer[cur_letter_index] = ((Uint8 *)NAME_INPUT_LUT_OFFSET)[cur_letter * 2];
 
         cur_letter_index++;
         if(cur_letter_index == 6) {

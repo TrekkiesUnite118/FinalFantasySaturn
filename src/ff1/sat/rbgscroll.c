@@ -30,8 +30,8 @@ SclConfig Rbg0Scfg;
 //Sky shown above the tilted map's horizon: the top three rows of the ocean battle backdrop over its solid sky
 //tile, on NBG3 in VRAM B0 in front of RBG0. Haze rows under the horizon blend over the map with a ratio set per
 //line by SCU DMA.
-#define SKY_CHR (0x0021C010 + 3 * 0x800)
-#define SKY_NES_PAL (0x00203210 + 3 * 4)
+#define SKY_CHR (BATTLE_TILE_OFFSET + 3 * 0x800)
+#define SKY_NES_PAL (BATTLE_BACKDROP_PALETTE_OFFSET + 3 * 4)
 #define SKY_TILES (13)
 #define SKY_CHAR_BLANK (SKY_TILES)
 #define SKY_CHAR_HAZE (SKY_TILES + 1)

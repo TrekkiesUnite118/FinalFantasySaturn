@@ -11,17 +11,6 @@
 #include "music.h"
 #include "bugfix.h"
 
-#define ENEMY_NAME_LOOKUP_TABLE (0x0022D4F0)
-#define ENEMY_NAME_PTR_ADD (0x00224010)
-#define ENEMY_DATA_TABLE (0x00230530)
-#define BATTLE_DATA_TABLE (0x0022C410)
-#define BATTLE_RNG_TABLE (0x0023FD01)
-#define BATTLE_PALETTE_TABLE (0x00230F30)
-#define BATTLE_MSG_TABLE (0x0022CC50)
-#define BATTLE_MSG_PTR_TABLE (0x0022CF60)
-#define FIEND_TSA (0x0022D2F0)
-#define CHAOS_TSA (0x0022D430)
-
 #define UPPER_CASE_LETTER_VALUE (0x8A)
 #define UPPER_CASE_ASCII_DIFF (0x49)
 #define NUMERICAL_SYMBOL_VALUE (0x80)
@@ -38,9 +27,6 @@
 #define LARGE_ENEMY_COL_1 FIXED(40)
 #define LARGE_ENEMY_COL_2 FIXED(88)
 
-#define BATTLE_BANK_OFFSET (0x00230000)
-
-const int ENEMY_SPRITE_PATTERN_DATA_OFFSET = 0x0021C010;
 
 Uint8 ATTACKER_MESSAGE_INDEX = 0;
 Uint8 ATTACK_MESSAGE_INDEX = 1;
@@ -192,7 +178,7 @@ void battle_init(Uint8 id) {
     determineTotalEnemies();
     enemiesRemaining = totalEnemies;
 
-    Uint8 *patternData = (Uint8 *)ENEMY_SPRITE_PATTERN_DATA_OFFSET + ((battle.pattern_selection << 11) + 0x120);
+    Uint8 *patternData = (Uint8 *)BATTLE_TILE_OFFSET +((battle.pattern_selection << 11) + 0x120);
     initEnemyPatternData(patternData, battle.palette_id_0, battle.palette_id_1);
 }
 
@@ -860,11 +846,8 @@ void drawMenu() {
 
     for(Uint8 i = 0; i < 5; i++) {
 
-        Uint16 offset = commandBox[0].text[i].ptr_high << 8;
-        offset += commandBox[0].text[i].ptr_low + 0x10;
-        Uint32 text_address = BATTLE_BANK_OFFSET + offset;
-
-        Uint8 *text_ptr = (Uint8 *)text_address;
+        Uint16 ptr = (commandBox[0].text[i].ptr_high << 8) | commandBox[0].text[i].ptr_low;
+        Uint8 *text_ptr = ROM_PTR(0x0F, ptr);
         drawTextLine(commandBox[0].text[i].xPos - 1, commandBox[0].text[i].yPos + *battleBox_height + 1, text_ptr, BATTLE_MENU_PALETTE, 1);
     }
     msgEndBlock();
@@ -1524,7 +1507,7 @@ Uint8 canRun(Uint8 index) {
 }
 
 void drawDmgString(Uint16 damage) {
-    Uint8 dmgBuffer[7] = {0x00, 0x00, 0x00, 0X00, 0x00, 0x00, 0x00};
+    Uint8 dmgBuffer[12] = {0x00};
     Uint8 i;
     Uint8 numOfDigits = 3;
     if(damage < 1000) {
@@ -1567,7 +1550,7 @@ void drawDmgString(Uint16 damage) {
     btl_msg_offset -= 0x8C40;
     Uint8 *dmg_msg_ptr = (Uint8*) BATTLE_MSG_TABLE + btl_msg_offset;
 
-    for(Uint8 i = 0; i < 3; i ++){
+    for(Uint8 i = 0; dmg_msg_ptr[i] != 0 && i + dmgColStart < sizeof(dmgBuffer) - 1; i++){
         dmgBuffer[i + dmgColStart] = dmg_msg_ptr[i];
     }
 

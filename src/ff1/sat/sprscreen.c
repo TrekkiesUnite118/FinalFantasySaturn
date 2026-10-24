@@ -45,7 +45,6 @@ void sprite_init() {
 
     initCharBattlePalettes();
     initCursorPalette();
-    updateWeaponPalettes(0x28, TRUE);
 
     Uint16 bsprite_num = 72;
     Uint16 bsprite_size = 192;
@@ -76,9 +75,7 @@ void sprite_init() {
     Uint16 weaponSprite_height = 16;
 
     weaponSpriteIndex = total_sprites;
-    for(i = 0; i < weaponSprite_num; i++) {
-         SPR_2SetChar(i + total_sprites, COLOR_0, 48, weaponSprite_width, weaponSprite_height, (Uint8 *)(LWRAM_WEAPON_SPRITES) + (i * weaponSprite_size));
-    }
+    updateWeaponPalettes(0x28, TRUE); //Also registers the weapon characters.
     total_sprites += weaponSprite_num;
 
     cursorSpriteIndex = total_sprites;

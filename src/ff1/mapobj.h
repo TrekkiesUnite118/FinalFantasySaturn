@@ -12,11 +12,7 @@
 #define MAPOBJ_H
 
 #include "types.h"
-
-#define LUT_MAP_OBJECTS (0x00203410) //$30 bytes per map: 15 objects of ID, X | flags, Y.
-#define LUT_MAP_OBJ_GFX (0x00202E10)
-#define LUT_MAP_OBJ_CHR (0x0020A210) //$100 bytes (16 tiles) per graphic.
-#define LUT_MAP_OBJ_TALK (0x002395E5) //Bank $0E $95D5, 4 bytes per object ID.
+#include "romaddr.h"
 
 #define SM_OBJ_COUNT (15)
 #define SM_OBJ_CHAR_START (384) //8 16x8 halves per object.

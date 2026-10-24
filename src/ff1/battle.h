@@ -15,8 +15,9 @@
 #include "types.h"
 #include "sprdata.h"
 #include "graphicrefs.h"
+#include "romaddr.h"
 
-//ROM addresses.
+//LWRAM addresses.
 #define BATTLE_MENU_MAP_LOCATION (0x280000)
 #define BATTLE_INVENTORY_MAP_LOCATION (0x2801E0)
 #define BATTLE_MSG_MAP_LOCATION (0x280398)
@@ -24,11 +25,6 @@
 #define BATTLE_ACT_MSG_MAP_LOCATION (0x2804A8)
 #define BATTLE_CLEAR_MAP_LOCATION (0x280500)
 #define BATTLE_ACT_MSG2_MAP_LOCATION (0x280710)
-#define BATTLE_ORDER_DEFAULT_LOCATION (0x23216C)
-#define WEAPON_LUT_LOCATION (0x230010)
-#define ARMOR_LUT_LOCATION (0x230150)
-#define MAGIC_LUT_LOCATION (0x2301F0)
-#define ENEMY_AI_LUT_LOCATION (0x231030)
 
 //enemyChooseAiAction result when the enemy does a physical attack.
 #define ENEMY_ACTION_PHYSICAL (0xFF)

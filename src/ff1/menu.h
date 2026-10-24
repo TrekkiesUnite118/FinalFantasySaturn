@@ -13,6 +13,7 @@
 #define MENU_H
 
 #include    "types.h"
+#include    "romaddr.h"
 
 //NES lut_PtyGenBuf entry.
 typedef struct {
@@ -70,6 +71,12 @@ typedef struct {
 
 //Columns added to every X, to center the NES screen.
 #define  CENTER_ADJUSTMENT (4)
+//Rows above the text used by Japanese dakuten marks.
+#ifdef FF1_JP
+#define  TEXT_MARK_ROWS (1)
+#else
+#define  TEXT_MARK_ROWS (0)
+#endif
 #define  NAME_BOX_EXTENSION (2)
 #define  BOX_TOP_LEFT_CORNER_CHAR (0xF7)
 #define  BOX_TOP_EDGE_CHAR (0xF8)
@@ -81,58 +88,8 @@ typedef struct {
 #define  BOX_BOTTOM_RIGHT_CORNER_CHAR (0xFE)
 #define  BOX_BLANK_CHAR (0xFF)
 
-//ROM addresses.
-#define  MENU_TILE_OFFSET (0x00224810)
-#define  BATTLE_TILE_OFFSET (0x0021C010)
-#define  BATTLE_BACKDROP_PALETTE_OFFSET (0x00203210)
-#define  PURPLE_MENU_PAL_OFFSET (0x0023EB84)
-#define  GREEN_MENU_PAL_OFFSET (0x0023EB88)
-#define  PARTY_GEN_OFFSET (0x0023A0BE)
-#define  CLASS_NAME_OFFSET (0x0022BF53)
-#define  CONTINUE_OFFSET (0x0023A263)
-#define  NEW_GAME_OFFSET (0x0023A26C)
-#define  RESPOND_RATE_OFFSET (0x0023A275)
-#define  COPYRIGHT_1_OFFSET (0x002384B8)
-#define  COPYRIGHT_2_OFFSET (0x002384CA)
-#define  NAME_INPUT_LUT_OFFSET (0x0023A021)
-#define  PRELUDE_TEXT_OFFEST (0x00237F30)
 #define  TILESET_2BPP_SIZE (0x800)
 #define  TILESET_4BPP_SIZE (0x1000)
-
-#define  BATTLE_MAIN_BOX_XY (0x0023F2F5)
-#define  BATTLE_MAIN_BOX_WIDTH (0x0023F2FA)
-#define  BATTLE_MAIN_BOX_HEIGHT (0x0023F2FC)
-
-#define  BATTLE_MAIN_BACKGROUND_WIDTH_1 (0x0023F39D)
-#define  BATTLE_MAIN_BACKGROUND_WIDTH_2 (0x0023F3AA)
-
-#define  BATTLE_CHAR_BOX_X (0x0023F301)
-#define  BATTLE_CHAR_BOX_Y (0x0023F306)
-#define  BATTLE_CHAR_BOX_WIDTH (0x0023F308)
-#define  BATTLE_CHAR_BOX_HEIGHT (0x0023F30A)
-
-#define  BATTLE_STAT_WIDTH (0x0023F3E0)
-#define  BATTLE_STAT_XPOS (0x0023F30F)
-#define  BATTLE_STAT_YPOS (0x0023F311)
-
-#define  ITEM_AND_MAGIC_BOX_LUT (0x0023FA21)
-#define  DRINK_BOX_LUT (0x0023FA26)
-
-#define  ENEMY_ROSTER_BOX_LUT (0x0023F9F4)
-
-#define  BATTLE_INFO_BOX_LUT (0x0023F9F9)
-
-#define  COMMAND_BOX_LUT (0x0023FA2B)
-#define  COMMAND_BOX_TEXT_LUT (0x0023FA30)
-
-#define  BATTLE_MSG_TABLE (0x0022CC50)
-#define  BATTLE_MSG_PTR_TABLE (0x0022CF60)
-
-#define  BASIC_TEXT_PTR_TABLE (0x0022B712)
-#define  BASIC_TEXT_BANK_ADD (0x00220010)
-
-#define  MENU_TEXT_PTR_TABLE (0x00238510)
-#define  MENU_TEXT_BANK_ADD (0x00230010)
 
 #define  BASIC_TEXT_ITEM_CNT (27)
 #define  BASIC_TEXT_WEAPON_CNT (40)
@@ -196,10 +153,37 @@ void drawBox(Uint8 xPos, Uint8 yPos, Uint8 width, Uint8 height, Uint8 palNum);
  */
 void drawBottomBoxLine(Uint8 xPos, Uint8 yPos, Uint8 width, Uint8 palNum);
 
+#ifdef FF1_JP
+/**
+ * @brief Gets the dakuten or handakuten mark drawn above a Japanese character.
+ *
+ * @param ch Character.
+ * @return The mark tile, or a blank for characters without one.
+ */
+Uint8 jpKanaMark(Uint8 ch);
+
+/**
+ * @brief Gets the tile a Japanese character draws on its own row.
+ *
+ * @param ch Character.
+ * @return The base kana tile for kana $48-$79, otherwise the character.
+ */
+Uint8 jpKanaBase(Uint8 ch);
+
+/**
+ * @brief Converts one UTF-8 kana, digit or "!?/LEHP" character to a Japanese ROM text code.
+ *
+ * @param src String position, moved past the character.
+ * @return The text code, or a space for characters the font lacks.
+ */
+Uint8 jpTextCode(const char **src);
+#endif
+
 /**
  * @brief Draws an NES string, expanding DTE pairs.
  *
- * Byte $01 starts a new line. $00 ends the string.
+ * Byte $01 starts a new line. $00 ends the string. Japanese text has no DTE,
+ * and draws its dakuten marks on the row above.
  *
  * @param xPos Left column.
  * @param yPos Top row.
@@ -212,7 +196,7 @@ void drawTextLine(Uint8 xPos, Uint8 yPos, Uint8 *stringPtr, Uint8 palNum, Uint8 
 /**
  * @brief Draws the prelude text to menuPlane, like drawTextLine.
  *
- * Rows 15 and 20 are skipped.
+ * Rows 15 and 20 are skipped on the US ROM.
  *
  * @param xPos Left column.
  * @param yPos Top row.

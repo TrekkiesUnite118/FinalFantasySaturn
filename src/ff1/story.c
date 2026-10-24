@@ -12,24 +12,7 @@
 #include "static.h"
 #include "music.h"
 #include "story.h"
-
-#define BANK_0B (LWRAM + 0x10 + (0x0B * 0x4000))
-#define BANK_0D (LWRAM + 0x10 + (0x0D * 0x4000))
-#define NES_ADDR(bank, addr) ((Uint8 *)(bank) + ((addr) & 0x3FFF))
-
-#define EPILOGUE_CHR NES_ADDR(BANK_0B, 0xA800)
-#define EPILOGUE_NT NES_ADDR(BANK_0B, 0xB000)
-#define BRIDGE_CHR NES_ADDR(BANK_0B, 0xB400)
-#define BRIDGE_NT NES_ADDR(BANK_0B, 0xBC00)
-#define LUT_THE_END_DRAW NES_ADDR(BANK_0D, 0xA000)
-#define LUT_FILL_GRADIENT NES_ADDR(BANK_0D, 0xA594)
-#define LUT_THE_END_ATTR NES_ADDR(BANK_0D, 0xA639)
-#define LUT_STORY_TEXT NES_ADDR(BANK_0D, 0xA800)
-#define LUT_BRIDGE_LAST_PAGE NES_ADDR(BANK_0D, 0xAE00)
-#define LUT_ENDING_LAST_PAGE NES_ADDR(BANK_0D, 0xAE01)
-#define LUT_CREDITS_TEXT NES_ADDR(BANK_0D, 0xBB00)
-#define LUT_BRIDGE_PAL NES_ADDR(BANK_0D, 0xBF00)
-#define LUT_ENDING_PAL NES_ADDR(BANK_0D, 0xBF10)
+#include "romaddr.h"
 
 #define CREDITS_PAGES (4)
 
@@ -182,7 +165,7 @@ void setupStoryScreen() {
 //NES Story_DrawText for credits: strings of raw tiles, each after a 2 byte PPU address. Returns the string count.
 static Uint8 storyDrawCredits() {
     Uint8 *ptr = LUT_CREDITS_TEXT + (storyPage * 2);
-    Uint8 *s = NES_ADDR(BANK_0D, ptr[0] | (ptr[1] << 8));
+    Uint8 *s = ROM_PTR(0x0D, ptr[0] | (ptr[1] << 8));
     Uint8 strings = 0;
 
     while(TRUE) {
@@ -217,7 +200,7 @@ static Uint8 storyDrawPage() {
     }
 
     Uint8 *ptr = LUT_STORY_TEXT + (storyPage * 2);
-    Uint8 *text = NES_ADDR(BANK_0D, ptr[0] | (ptr[1] << 8));
+    Uint8 *text = ROM_PTR(0x0D, ptr[0] | (ptr[1] << 8));
     frames++;
     for(Uint8 *s = text; *s; s++) {
         if(*s == 0x01 || *s == 0x05) {

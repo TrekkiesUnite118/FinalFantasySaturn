@@ -7,26 +7,6 @@
 Uint16 decompressedMap[256][256];
 Uint16 mapPlane[32][32];
 
-const int LWRAM_START = 0x00200000;
-
-const int OVERWORLDMAP_OFFSET = 0x00204010;
-const int OVERWORLDMAP_PTRADD = -0x3FF0;
-const int OVERWORLDMAP_START = 0x00204210;
-const int OVERWORLDMAP_END = 0x00207F50;
-
-const int OVERWORLD_TILEDATA = 0x00200010;
-const int OVERWORLD_TSA = 0x00200110;
-const int OVERWORLD_PALETTE_ASSIGNMENT = 0x00200310;
-const int OVERWORLD_PALETTE = 0x00200390;
-const int OVERWORLD_CHR = 0x00208010;
-
-const int BATTLE_BACKDROP = 0x00203310;
-
-const int RNG_TABLE = 0x0023F110;
-
-const int BATTLE_FORMAT_WEIGHT_TABLE = 0x0023C59C;
-const int BATTLE_LOOKUP_TABLE = 0x0022C010;
-
 Uint8 battleStep = 0xFF;
 Uint8 battleStepSign = 0;
 int battleCount = -1;
@@ -54,7 +34,7 @@ void decomp_map() {
         Uint8 *mapPtr = (Uint8*) ptr;
         Uint8 ptrVal1 = mapPtr[0];
         Uint8 ptrVal2 = mapPtr[1];
-        offset = ((ptrVal1 + (ptrVal2 << 8)) + OVERWORLDMAP_PTRADD) + LWRAM_START;
+        offset = (ptrVal1 + (ptrVal2 << 8)) + OVERWORLDMAP_BANK_ADD;
         for(coX = 0; coX < 256; offset++){
 
             Uint8 *tempPtr = (Uint8*) offset;
