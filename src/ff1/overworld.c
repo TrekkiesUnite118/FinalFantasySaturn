@@ -3,6 +3,7 @@
 
 #include "overworld.h"
 #include "battle.h"
+#include "msxgfx.h"
 
 Uint16 decompressedMap[256][256];
 Uint16 mapPlane[32][32];
@@ -81,7 +82,7 @@ void update_plane(int map_y, int map_x) {
 
             Uint16 tileVal = decompressedMap[map_y][map_x];
             Uint8 *palPtr = (Uint8 *)OVERWORLD_PALETTE_ASSIGNMENT;
-            Uint8 palette_val = (palPtr[tileVal] & 3);
+            Uint8 palette_val = MSX_ON ? 0 : (palPtr[tileVal] & 3);
 
             Uint16 tile = palette_val << 12;
             tile += tileVal;

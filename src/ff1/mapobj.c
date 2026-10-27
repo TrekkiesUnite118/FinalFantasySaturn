@@ -9,6 +9,7 @@
 #include "vblank.h"
 #include "stdmap.h"
 #include "mapobj.h"
+#include "msxgfx.h"
 
 //Screen position of NES sprite 0,0, matching the player sprite.
 #define SM_OBJ_SCREEN_X (40)
@@ -78,6 +79,9 @@ void smLoadMapObjectChr() {
         Uint8 *chr = (Uint8 *)(LUT_MAP_OBJ_CHR + gfx[objTbl[i * 3]] * 0x100);
         convertNesTilesToSatTiles(chr, (Uint8 *)LWRAM_BUFFER, 0x100);
         buildMapSprites((Uint8 *)LWRAM_BUFFER, halves, 0x200);
+        if(MSX_ON) {
+            msxRecolorObject(gfx[objTbl[i * 3]], halves);
+        }
         for(Uint8 h = 0; h < 8; h++) {
             sprSetChar(SM_OBJ_CHAR_START + i * 8 + h, SPRITE_4BPP, (h & 1) ? SM_OBJ_BOTTOM_CRAM : SM_OBJ_TOP_CRAM,
                 16, 8, halves + h * 64);

@@ -9,6 +9,7 @@
 #include "vblank.h"
 #include "music.h"
 #include "bugfix.h"
+#include "msxgfx.h"
 
 //Pal 0 is the menu blue with white text, pal 1 the same with grey text for fixes that are off.
 #define BF_PAL_ON (0)
@@ -390,7 +391,7 @@ static void bfText(Uint8 *dst, const char *src, Uint8 len) {
 }
 #endif
 
-static void bfDrawText(Uint8 x, Uint8 y, const char *str, Uint8 len, Uint8 pal) {
+void optionDrawText(Uint8 x, Uint8 y, const char *str, Uint8 len, Uint8 pal) {
     Uint8 buffer[BF_DESC_W + 1];
 
     bfText(buffer, str, len);
@@ -406,7 +407,7 @@ static Uint8 bfY(Uint8 id) {
 }
 
 static void bfDrawName(Uint8 id) {
-    bfDrawText(bfX(id), bfY(id), bfNames[id], BF_NAME_W, BUGFIX_ON(id) ? BF_PAL_ON : BF_PAL_OFF);
+    optionDrawText(bfX(id), bfY(id), bfNames[id], BF_NAME_W, BUGFIX_ON(id) ? BF_PAL_ON : BF_PAL_OFF);
 }
 
 static void bfDrawDesc() {
@@ -414,22 +415,20 @@ static void bfDrawDesc() {
         Uint8 y = BF_DESC_Y + 2 + i * BF_ROW_H;
         if(TEXT_MARK_ROWS) {
             //Clears the previous description's marks.
-            bfDrawText(BF_DESC_X, y - 1, "", BF_DESC_W, BF_PAL_ON);
+            optionDrawText(BF_DESC_X, y - 1, "", BF_DESC_W, BF_PAL_ON);
         }
-        bfDrawText(BF_DESC_X, y, bfDescs[bfCursor][i], BF_DESC_W, BF_PAL_ON);
+        optionDrawText(BF_DESC_X, y, bfDescs[bfCursor][i], BF_DESC_W, BF_PAL_ON);
     }
 }
 
 void setupBugFixScreen() {
-    for(Uint8 i = 0; i < 4; i++) {
-        menu_pal_0[i] = nes_pal[boarderPalette_blue[i]];
-        menu_pal_1[i] = nes_pal[boarderPalette_blue[i]];
-    }
+    setBoxPalette(menu_pal_0, boarderPalette_blue, MSX_BOX_MENU);
+    setBoxPalette(menu_pal_1, boarderPalette_blue, MSX_BOX_MENU);
     menu_pal_1[3] = nes_pal[BF_GREY];
 
 #ifndef FF1_JP
     drawBox(BF_BOX_X, BF_TITLE_Y, BF_BOX_W, BF_TITLE_H, BF_PAL_ON);
-    bfDrawText(BF_DESC_X, BF_TITLE_Y + 1, bfTitle, sizeof(bfTitle) - 1, BF_PAL_ON);
+    optionDrawText(BF_DESC_X, BF_TITLE_Y + 1, bfTitle, sizeof(bfTitle) - 1, BF_PAL_ON);
 #endif
     drawBox(BF_BOX_X, BF_LIST_Y, BF_BOX_W, BF_LIST_H, BF_PAL_ON);
     drawBox(BF_BOX_X, BF_DESC_Y, BF_BOX_W, BF_DESC_H, BF_PAL_ON);

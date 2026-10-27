@@ -34,4 +34,13 @@ extern Uint32 nes_pal[64];
  */
 Uint32 emphasizeColor(Uint8 nesColor, Uint8 emphasis);
 
+/**
+ * @brief Applies emphasis to a color, as emphasizeColor does to NES colors.
+ *
+ * @param color VDP2 24-bit color (0xBBGGRR).
+ * @param emphasis Emphasis bits. Bit 0 = red, bit 1 = green, bit 2 = blue.
+ * @return The color.
+ */
+Uint32 emphasizeRgb(Uint32 color, Uint8 emphasis);
+
 #endif

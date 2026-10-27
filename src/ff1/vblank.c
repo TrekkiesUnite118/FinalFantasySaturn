@@ -26,11 +26,12 @@
 #include    "shop.h"
 #include    "wipe.h"
 #include    "save.h"
-#include    "nesaudio.h"
+#include    "audio.h"
 #include    "music.h"
 #include    "story.h"
 #include    "minigame.h"
 #include    "bugfix.h"
+#include    "gfxmenu.h"
 
 static void UsrVblankIn(void);
 static void UsrVblankOutFirst(void);
@@ -50,7 +51,7 @@ void SetVblank(void) {
 
 
 static void UsrVblankIn(void) {
-    nesaudio_vblank_in();
+    audio_vblank_in();
     
     if(frameCount == 60) {
         frameCount = 0;
@@ -68,7 +69,7 @@ static void UsrVblankIn(void) {
     }
     if(state == MINIMAP) {
         minimap_vblank_in();
-    } else if(state == STORY) {
+    } else if(state == STORY || state == MINIGAME) {
         story_vblank_in();
     }
     //Back screen color table entry set up by static_init.
@@ -178,6 +179,8 @@ static void UsrVblankOut(void) {
         doStatusMenu();
     } else if(state == BUGFIX_MENU) {
         doBugFixMenu();
+    } else if(state == GFX_MENU) {
+        doGfxMenu();
     } else if(state == MAGIC_MENU) {
         doMagicMenu();
     } else if(state == EQUIP_MENU) {

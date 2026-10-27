@@ -2,9 +2,66 @@
 
 #include "cd.h"
 #include "player.h"
+#include "stdmap.h"
 #include "nesaudio.h"
+#include "audio.h"
+#include "msxaudio.h"
+#include "msxdrv.h"
 #include "music.h"
 #include "romaddr.h"
+
+//MSX directory numbers of the songs.
+enum {
+    MS_OPENING = MSX_SONG_FIRST,
+    MS_PRERO,
+    MS_SHIRO,
+    MS_THEME,
+    MS_KAOSS,
+    MS_MATOOYA,
+    MS_TOWN,
+    MS_SHOP,
+    MS_FUNE,
+    MS_KAITEI,
+    MS_RANCHON,
+    MS_MENU,
+    MS_HIKO_SEN,
+    MS_GURUGU,
+    MS_HUYU_JYO,
+    MS_SENTOH,
+    MS_SYO_RI,
+    MS_ENDING,
+    MS_DIED,
+    MS_SAVE,
+    MS_GET
+};
+
+//FF.BGE effects, by where the MSX game plays them.
+#define MSX_SFX_ENEMY_ATTACK (1)
+#define MSX_SFX_DIALOGUE_OPEN (2)
+#define MSX_SFX_DIALOGUE_CLOSE (3)
+#define MSX_SFX_MENU_MOVE (4)
+#define MSX_SFX_MENU_SEL (5)
+#define MSX_SFX_ERROR (6)
+#define MSX_SFX_POISON (6)
+#define MSX_SFX_HIT (8)
+#define MSX_SFX_MAGIC (9)
+#define MSX_SFX_DOOR (10)
+#define MSX_SFX_HEAL (14)
+
+//The MSX song for each track from MUSIC_PRELUDE, 0 for the map's song (MAIN.COM's map table).
+static const Uint8 msxTrackSongs[] = {
+    MS_PRERO, MS_OPENING, MS_ENDING, MS_THEME, MS_FUNE, MS_HIKO_SEN, 0, 0,
+    0, 0, 0, 0, 0, 0, MS_SHOP, MS_SENTOH,
+    MS_MENU, MS_DIED, MS_SYO_RI, MS_GET, MS_PRERO, MS_SAVE, 0, MS_GET,
+};
+
+Uint8 sndMsx;
+//The last track started, for restarting it in the other driver.
+static Uint8 musicSong;
+static Uint8 msxSong;
+//MSX effect for the next audio frame, 0 for none.
+static volatile Uint8 msxSfxRequest;
+static volatile Uint8 msxStopRequest;
 
 enum {
     CHAN_SQ1,
@@ -288,6 +345,82 @@ void musicPlay() {
     }
 }
 
+static Uint8 msxOn() {
+    return audio_mode() == AUDIO_MSX;
+}
+
+static void msxSfx(Uint8 id) {
+    msxSfxRequest = id;
+}
+
+static void msxStartTrack(Uint8 track) {
+    Uint8 i = track - MUSIC_PRELUDE;
+    const Uint8 *bgm;
+
+    //The MSX game plays an effect over the menu music for healing.
+    if(track == MUSIC_HEAL) {
+        msxSfx(MSX_SFX_HEAL);
+        return;
+    }
+    msxSong = i < sizeof(msxTrackSongs) ? msxTrackSongs[i] : 0;
+    if(!msxSong) {
+        msxSong = msxaudio_map_song(cur_map);
+    }
+    bgm = msxaudio_song(msxSong);
+    if(bgm) {
+        msxDrvPlayBgm(bgm);
+    } else {
+        msxDrvStopBgm();
+    }
+}
+
+//musicPlay for the MSX driver. A song that ends sets MUSIC_ENDED, like the NES driver.
+static void msxMusicPlay() {
+    if(music_track & 0x80) {
+        if(music_track == MUSIC_ENDED) {
+            if(msxDrvBgmBusy()) {
+                msxDrvStopBgm();
+            }
+            msxSong = 0;
+            music_track++;
+        }
+        return;
+    }
+    if(music_track != 0) {
+        msxStartTrack(music_track);
+        music_track = 0;
+    } else if(!msxDrvBgmBusy()) {
+        music_track = MUSIC_ENDED;
+    }
+}
+
+//Starts the frame's effect after any song, since starting a song stops the effect.
+static void msxSfxFrame() {
+    if(msxStopRequest) {
+        msxDrvStopBgm();
+        msxSong = 0;
+        msxStopRequest = FALSE;
+    }
+    if(msxSfxRequest) {
+        msxDrvPlaySfx(msxSfxRequest);
+        msxSfxRequest = 0;
+    } else if(msxSong == MS_HIKO_SEN && !msxDrvSfxBusy()) {
+        //The MSX game keeps the propeller effect going on the airship.
+        msxDrvPlaySfx(MSX_SFX_AIRSHIP);
+    }
+}
+
+void musicMsxSfx(Uint8 id) {
+    if(msxOn()) {
+        msxSfx(id);
+    }
+}
+
+void musicMsxStopSong() {
+    if(msxOn()) {
+        msxStopRequest = TRUE;
+    }
+}
 //NES btlsfx_* variables.
 static Uint8 *btlSfxSq2Ptr;
 static Uint8 *btlSfxNsePtr;
@@ -356,14 +489,22 @@ void battleSfx(Uint8 id) {
 }
 
 //Runs the queued writes, then MusicPlay where the NES frame routine for this state calls it.
-void musicFrame() {
+//The MSX driver gets the same calls, with its own effects. Queued writes do nothing with the MSX driver.
+static void musicUpdate(Uint8 msx) {
     Uint8 battle = FALSE;
 
     while(apuQueueTail != apuQueueHead) {
         nesaudio_write(apuQueueAddr[apuQueueTail % APU_QUEUE_SIZE], apuQueueValue[apuQueueTail % APU_QUEUE_SIZE]);
         apuQueueTail++;
     }
+    if((music_track & 0xC0) == 0x40) {
+        musicSong = music_track;
+    }
 
+    if(sfxErrorFrames && msx) {
+        sfxErrorFrames--;
+        return;
+    }
     //NES PlaySFX_Error @Frame, without MusicPlay.
     if(sfxErrorFrames) {
         nesaudio_write(0x4004, 0x8C);
@@ -394,6 +535,7 @@ void musicFrame() {
         case ITEM_MENU:
         case SAVE_MENU:
         case BUGFIX_MENU:
+        case GFX_MENU:
             if(music_track & 0x80) {
                 music_track = MUSIC_MENU;
             }
@@ -420,7 +562,11 @@ void musicFrame() {
                 music_track = btlFollowupMusic;
             }
             battle = TRUE;
-            if(battleSfxRequest) {
+            if(battleSfxRequest && msx) {
+                static const Uint8 msxBattleSfx[3] = {MSX_SFX_MAGIC, MSX_SFX_ENEMY_ATTACK, MSX_SFX_HIT};
+                msxSfx(msxBattleSfx[battleSfxRequest - 1]);
+                battleSfxRequest = 0;
+            } else if(battleSfxRequest) {
                 battleSfxStart(battleSfxRequest - 1);
                 battleSfxRequest = 0;
                 //The NES starts the effect mid-frame, so its next update is a frame later.
@@ -430,14 +576,60 @@ void musicFrame() {
         default:
             break;
     }
+    if(msx) {
+        msxMusicPlay();
+        return;
+    }
     musicPlay();
     if(battle && !battleSfxHold) {
         battleSfxUpdate();
     }
 }
 
+void musicFrame() {
+    Uint8 msx = msxOn();
+
+    musicUpdate(msx);
+    if(msx) {
+        msxSfxFrame();
+    }
+}
+
+void musicSetMsx(Uint8 msx) {
+    Uint8 track = music_track;
+    Uint8 hold = musicHold;
+
+    //Restarts the song in the new driver, unless it ended.
+    if(track & 0x80) {
+        track = 0;
+    } else if(!(track & 0x40)) {
+        track = musicSong;
+    }
+    //No song starts or ends until the track is set.
+    musicHold = TRUE;
+    sndMsx = audio_set_mode(msx ? AUDIO_MSX : AUDIO_NES) == AUDIO_MSX;
+    msxSfxRequest = 0;
+    msxStopRequest = FALSE;
+    msxSong = 0;
+    sq2_sfx = 0;
+    sfxErrorFrames = 0;
+    btlSfxFrameCtr = 0;
+    if(track) {
+        music_track = track;
+    }
+    musicHold = hold;
+}
+
+Uint8 musicMsxAvailable() {
+    return audio_msx_available();
+}
+
 //NES PlaySFX_MenuSel.
 void sfxMenuSel() {
+    if(msxOn()) {
+        msxSfx(MSX_SFX_MENU_SEL);
+        return;
+    }
     musicApuWrite(0x4004, 0xBA);
     musicApuWrite(0x4005, 0xBA);
     musicApuWrite(0x4006, 0x40);
@@ -447,6 +639,10 @@ void sfxMenuSel() {
 
 //NES PlaySFX_MenuMove.
 void sfxMenuMove() {
+    if(msxOn()) {
+        msxSfx(MSX_SFX_MENU_MOVE);
+        return;
+    }
     musicApuWrite(0x4004, 0x7A);
     musicApuWrite(0x4005, 0x9B);
     musicApuWrite(0x4006, 0x20);
@@ -456,6 +652,11 @@ void sfxMenuMove() {
 
 //NES PlaySFX_Error. The NES stays in this routine for its 16 frames, so the game waits on sfxErrorFrames.
 void sfxError() {
+    if(msxOn()) {
+        msxSfx(MSX_SFX_ERROR);
+        sfxErrorFrames = 16;
+        return;
+    }
     sq2_sfx = 1;
     musicApuWrite(0x4000, 0x30);
     musicApuWrite(0x4008, 0x30);
@@ -467,6 +668,11 @@ void sfxError() {
 void sfxDialogueBox(Uint8 sweep, Uint8 frames) {
     Uint8 lo = (sweep >> 2) | ((sweep & 0x01) << 7);
 
+    if(msxOn()) {
+        msxSfx(sweep == 0x8E ? MSX_SFX_DIALOGUE_OPEN : MSX_SFX_DIALOGUE_CLOSE);
+        return;
+    }
+
     sq2_sfx = frames;
     musicApuWrite(0x4004, 0x38);
     musicApuWrite(0x4005, sweep);
@@ -476,6 +682,10 @@ void sfxDialogueBox(Uint8 sweep, Uint8 frames) {
 
 //NES MiniGameLoop's sound for a piece that can't slide.
 void sfxMinigameError() {
+    if(msxOn()) {
+        msxSfx(MSX_SFX_ERROR);
+        return;
+    }
     musicApuWrite(0x4004, 0x3C);
     musicApuWrite(0x4005, 0x8C);
     musicApuWrite(0x4006, 0x70);
@@ -485,6 +695,10 @@ void sfxMinigameError() {
 
 //NES PlayDoorSFX.
 void sfxDoor() {
+    if(msxOn()) {
+        msxSfx(MSX_SFX_DOOR);
+        return;
+    }
     musicApuWrite(0x400C, 0x0C);
     musicApuWrite(0x400E, 0x0E);
     musicApuWrite(0x400F, 0x30);
@@ -492,6 +706,10 @@ void sfxDoor() {
 
 //NES MapPoisonDamage sound.
 void sfxPoison() {
+    if(msxOn()) {
+        msxSfx(MSX_SFX_POISON);
+        return;
+    }
     musicApuWrite(0x4004, 0x3A);
     musicApuWrite(0x4005, 0x81);
     musicApuWrite(0x4006, 0x60);
@@ -501,6 +719,10 @@ void sfxPoison() {
 
 //NES MapTileDamage sound.
 void sfxTileDamage() {
+    if(msxOn()) {
+        msxSfx(MSX_SFX_HIT);
+        return;
+    }
     musicApuWrite(0x400C, 0x0F);
     musicApuWrite(0x400E, 0x0D);
     musicApuWrite(0x400F, 0x00);

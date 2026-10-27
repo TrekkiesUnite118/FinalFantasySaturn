@@ -14,12 +14,43 @@ static void (*vblOut)(void);
 
 static Uint32 rtcWorkArea[7];
 
+#define TVMD_DISP (0x8000)
+
+//V-blanks left until sysShowDisplay turns the display back on, 0 when not waiting.
+//Counted in V-blank: after a long frame, the next frameEnd calls don't wait.
+static volatile Uint8 showDisplayFrames = 0;
+
 void sysDisplayOff(void) {
     *(volatile Uint16 *)0x25F80000 = 0x0000;
 }
 
+//SCL rewrites TVMD from Scl_s_reg, so DISP is changed there too.
+static void sysSetDisp(Uint8 on) {
+    if(on) {
+        Scl_s_reg.tvmode |= TVMD_DISP;
+    } else {
+        Scl_s_reg.tvmode &= ~TVMD_DISP;
+    }
+    *(volatile Uint16 *)0x25F80000 = Scl_s_reg.tvmode;
+    if(SclProcess == 0) {
+        SclProcess = 1;
+    }
+}
+
+void sysBlankDisplay(void) {
+    showDisplayFrames = 0;
+    sysSetDisp(FALSE);
+}
+
+void sysShowDisplay(Uint8 frames) {
+    showDisplayFrames = frames;
+}
+
 static void sysVblankIn(void) {
     vblIn();
+    if(showDisplayFrames && --showDisplayFrames == 0) {
+        sysSetDisp(TRUE);
+    }
     SCL_VblankStart();
 }
 

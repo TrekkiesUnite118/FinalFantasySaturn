@@ -18,7 +18,7 @@
 /**
  * @brief Turns on CD audio output at volume 5.
  *
- * Call after cd_init and nesaudio_init. The NES audio driver's SCSP
+ * Call after cd_init and audio_init. A sound driver's SCSP
  * reset clears these slot settings.
  */
 void sound_init(void);

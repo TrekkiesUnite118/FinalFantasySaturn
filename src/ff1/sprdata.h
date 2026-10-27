@@ -21,7 +21,15 @@
 #define CHARACTER_PRIORITY (1)
 #define WEAPON_PRIORITY (0)
 
+#define CURSOR_PALETTE_CRAM (64)
 #define STONE_PALETTE_CRAM (80)
+#define MSX_BATTLE_CRAM (96)
+
+//Battle characters: 6 frames per class, the 5th crouched and the 6th the 24x16 dead pose.
+#define BATTLE_CHAR_START (96)
+#define BATTLE_SPRITE_COUNT (72)
+//MSX statue per class, after the minimap's characters.
+#define MSX_STONE_CHAR_START (mapSpriteStart + 98)
 
 //Sprite palettes, 16 colors each.
 extern Uint32 player_pal_0[];
@@ -29,6 +37,7 @@ extern Uint32 player_pal_1[];
 extern Uint32 weapon_pal[];
 extern Uint32 cursor_pal_0[];
 extern Uint32 stone_pal[];
+extern Uint32 msx_bat_pal[];
 
 //Sprite character numbers, set by sprite_init.
 Uint16 total_sprites;
@@ -45,6 +54,24 @@ Uint16 mapSpriteCramStart;
  * @param patternData Pointer to the NES battle sprite CHR.
  */
 void initBattleSpriteData(Uint8 *patternData);
+
+/**
+ * @brief Registers the party's battle characters and sets the cursor palette, NES or MSX by the graphics option.
+ */
+void registerBattleSprites(void);
+
+/**
+ * @brief Runs registerBattleSprites again if the graphics option changed.
+ */
+void updateBattleSprites(void);
+
+/**
+ * @brief Draws a stoned character: NES crouched in the stone palette, MSX as its statue.
+ *
+ * @param sprite Sprite to draw. Its character is changed.
+ * @param charClass The character's class.
+ */
+void drawStoneSprite(SPRITE_INFO *sprite, Uint8 charClass);
 
 /**
  * @brief Converts the NES map sprite graphics into LWRAM_MAP_SPRITES.
@@ -66,7 +93,7 @@ void initWeaponSpriteData(Uint8 *patternData);
 void initCharBattlePalettes();
 
 /**
- * @brief Loads the cursor palette from the ROM.
+ * @brief Loads the cursor palette from the ROM, in MSX colors when the MSX graphics are on.
  */
 void initCursorPalette();
 

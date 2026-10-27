@@ -32,8 +32,9 @@
 CC = sh-coff-gcc
 AS = gasm
 
-CFLAGS  = -g -O2 -Wall -std=gnu99 -m2 -DMODEL_S -I. -Isaturn -Ines -Iff1 -Iff1/sat -I$(GCC)/include -I$(SEGALIB)/include -I$(SEGASMP)/per/smpclib
+CFLAGS  = -g -O2 -Wall -std=gnu99 -m2 -DMODEL_S -I. -Isaturn -Ines -Imsx -Iff1 -Iff1/sat -I$(GCC)/include -I$(SEGALIB)/include -I$(SEGASMP)/per/smpclib
 #make JP=1 builds for the Japanese ROM.
+#JP=1
 ifeq ($(JP),1)
 CFLAGS += -DFF1_JP
 endif
@@ -45,7 +46,7 @@ GCC     = c:/saturn/SH_COFF/sh-coff
 SEGASMP = $(SATURN)/segasmp
 SEGALIB = $(SATURN)/segalib
 
-LOCATE_FILE = $(SEGASMP)/lib/saturn.lnk
+LOCATE_FILE = saturn.lnk
 ENTRY_POINT = START
 CONFIG_FILE = sample.cfg
 LIBS_FILE = $(SEGASMP)/lib/libs.lst
@@ -57,7 +58,7 @@ include	$(CONFIG_FILE)
 .SUFFIXES:
 .SUFFIXES: .cof .o .src .c
 
-vpath %.c saturn nes ff1 ff1/sat
+vpath %.c saturn nes msx ff1 ff1/sat
 
 all: $(TARGET).cof $(TARGET).bin
 

@@ -1,4 +1,4 @@
-
+#include <string.h>
 #include "video.h"
 #include "sys.h"
 #include "battle.h"
@@ -10,6 +10,10 @@
 #include "player.h"
 #include "music.h"
 #include "bugfix.h"
+#include "memmap.h"
+#include "msxgfx.h"
+
+static void msxLoadEnemies(void);
 
 #define UPPER_CASE_LETTER_VALUE (0x8A)
 #define UPPER_CASE_ASCII_DIFF (0x49)
@@ -178,8 +182,12 @@ void battle_init(Uint8 id) {
     determineTotalEnemies();
     enemiesRemaining = totalEnemies;
 
-    Uint8 *patternData = (Uint8 *)BATTLE_TILE_OFFSET +((battle.pattern_selection << 11) + 0x120);
-    initEnemyPatternData(patternData, battle.palette_id_0, battle.palette_id_1);
+    if(MSX_ON) {
+        msxLoadEnemies();
+    } else {
+        Uint8 *patternData = (Uint8 *)BATTLE_TILE_OFFSET +((battle.pattern_selection << 11) + 0x120);
+        initEnemyPatternData(patternData, battle.palette_id_0, battle.palette_id_1);
+    }
 }
 
 Uint8 parseBattleGroup(Uint8 minMax, int picNum, int palNum, int enemyId, int group) {
@@ -436,6 +444,120 @@ static void drawFiendChaos(Uint8 *tsa, Uint8 width, Uint8 height, Uint8 nesX, Ui
     }
 }
 
+//MSX enemies use the NES enemy characters, and battle palettes 3-6, one per enemy type.
+#define MSX_ENEMY_CHAR_START (18)
+#define MSX_ENEMY_CHAR_END (128)
+#define MSX_ENEMY_FIRST_PAL (3)
+#define MSX_ENEMY_TYPES (4)
+#define MSX_BOSS_CELLS (14 * 12)
+#define BATTLE_FADE_SHADES (4) //NES FadeOutOneShade steps from full color to black.
+
+static Uint32 *msxEnemyPal[MSX_ENEMY_TYPES] = {menu_pal_3, menu_pal_4, menu_pal_5, menu_pal_6};
+static Uint8 msxEnemyTypes;
+static Uint8 msxTypeEnemy[MSX_ENEMY_TYPES]; //MSX enemy of each type.
+static Uint8 msxTypeChar[MSX_ENEMY_TYPES]; //First character of each type.
+static Uint8 msxGroupType[4];
+static Uint8 msxBossChars[MSX_BOSS_CELLS]; //Fiend/Chaos character of each cell, 0 for blank.
+
+//Fiends and Chaos have blank and repeated cells, which share characters. Chaos wouldn't fit otherwise.
+static void msxLoadBoss(Uint8 msx, Uint16 cells) {
+    static const Uint8 blank[32] = {0};
+    const Uint8 *src = msxData(MSX_ID_ENEMY_TILES + msx);
+    Uint8 *chars = (Uint8 *)LWRAM_MENU_TILES;
+    Uint8 next = MSX_ENEMY_CHAR_START;
+
+    for(Uint16 c = 0; c < cells; c++) {
+        const Uint8 *tile = src + c * 32;
+        Uint8 ch = MSX_ENEMY_CHAR_START;
+
+        msxBossChars[c] = 0;
+        if(memcmp(tile, blank, 32) == 0) {
+            continue;
+        }
+        while(ch < next && memcmp(chars + ch * 32, tile, 32) != 0) {
+            ch++;
+        }
+        if(ch == next) {
+            if(next == MSX_ENEMY_CHAR_END) {
+                continue;
+            }
+            memcpy(chars + next * 32, tile, 32);
+            next++;
+        }
+        msxBossChars[c] = ch;
+    }
+}
+
+//Loads each enemy type in the formation, in place of the NES pattern page.
+static void msxLoadEnemies() {
+    Uint8 ids[4] = {battle.enemy_id_0, battle.enemy_id_1, battle.enemy_id_2, battle.enemy_id_3};
+    Uint8 next = MSX_ENEMY_CHAR_START;
+
+    msxEnemyTypes = 0;
+    for(Uint8 slot = 0; slot < 9; slot++) {
+        Uint8 group = enemyNums[slot];
+        if(group > 3) {
+            continue;
+        }
+        Uint8 msx = msxEnemy(ids[group]);
+        Uint8 type = 0;
+        while(type < msxEnemyTypes && msxTypeEnemy[type] != msx) {
+            type++;
+        }
+        if(type == msxEnemyTypes) {
+            Uint8 tiles = picassignment[group] > 1 ? 36 : 16;
+            if(battle.battle_type == 3) {
+                msxLoadBoss(msx, 8 * 8);
+            } else if(battle.battle_type == 4) {
+                msxLoadBoss(msx, MSX_BOSS_CELLS);
+            } else if(next + tiles <= MSX_ENEMY_CHAR_END) {
+                memcpy((Uint8 *)LWRAM_MENU_TILES + next * 32, msxData(MSX_ID_ENEMY_TILES + msx), tiles * 32);
+            }
+            msxTypeEnemy[type] = msx;
+            msxTypeChar[type] = next;
+            next += tiles;
+            msxEnemyTypes++;
+        }
+        msxGroupType[group] = type;
+    }
+}
+
+//The enemy palettes, 'shades' steps toward black like the NES battle fade.
+static void msxShadeEnemyPalettes(Uint8 shades) {
+    for(Uint8 t = 0; t < msxEnemyTypes; t++) {
+        const Uint32 *src = msxPalette(MSX_ID_ENEMY_PALS + msxTypeEnemy[t]);
+        for(Uint8 i = 0; i < 16; i++) {
+            msxEnemyPal[t][i] = msxFadeColor(src[i], shades, BATTLE_FADE_SHADES);
+        }
+    }
+}
+
+static void drawEnemyGroup(Uint8 group, Uint8 xPos, Uint8 yPos) {
+    if(!MSX_ON) {
+        drawEnemy(picassignment[group], palassignment[group], xPos, yPos);
+        return;
+    }
+    Uint8 size = picassignment[group] > 1 ? 6 : 4;
+    Uint8 type = msxGroupType[group];
+    Uint16 tile = ((MSX_ENEMY_FIRST_PAL + type) << 12) + msxTypeChar[type];
+
+    for(Uint8 y = 0; y < size; y++) {
+        for(Uint8 x = 0; x < size; x++) {
+            menuPlane[yPos + y][xPos + CENTER_ADJUSTMENT - 1 + x] = tile++;
+        }
+    }
+}
+
+//Draws the MSX Fiend or Chaos over the same cells as drawFiendChaos.
+static void msxDrawBoss(Uint8 width, Uint8 height, Uint8 nesX, Uint8 nesY) {
+    for(Uint8 y = 0; y < height; y++) {
+        for(Uint8 x = 0; x < width; x++) {
+            Uint8 ch = msxBossChars[y * width + x];
+            menuPlane[nesY + y][nesX + x + CENTER_ADJUSTMENT - 1] = ch ? (MSX_ENEMY_FIRST_PAL << 12) + ch : 0;
+        }
+    }
+}
+
 void enemy_bat_draw() {
 
     int i = 0;
@@ -457,7 +579,7 @@ void enemy_bat_draw() {
         
         for(i = 0; i < totalEnemies; i++) {
             
-            drawEnemy(picassignment[enemyNums[i]], palassignment[enemyNums[i]], startPosX, startPosY);
+            drawEnemyGroup(enemyNums[i], startPosX, startPosY);
             
             slotNum = battle_formation_0_order[i];
             slotToEnemyNum[slotNum] = i;
@@ -502,10 +624,11 @@ void enemy_bat_draw() {
          * LARGE2   LARGE4
          * 
          **/
-         startPosY = 10;
+         //NES lut_EraseEnemyPPUAddress_4Large: rows 6/12, columns 2/10.
+         startPosY = 6;
          for(i = 0; i < totalEnemies; i++) {
             
-            drawEnemy(picassignment[enemyNums[i]], palassignment[enemyNums[i]], startPosX, startPosY);
+            drawEnemyGroup(enemyNums[i], startPosX, startPosY);
 
 
             slotNum = battle_formation_1_order[i];
@@ -527,10 +650,10 @@ void enemy_bat_draw() {
                     enemy3_num--;
                 }
             }
-            
-            if(i == 2) {
-                startPosX += 6;
-                startPosY -= 12;
+
+            if(i == 1) {
+                startPosX += 8;
+                startPosY -= 6;
             } else {
                 startPosY += 6;
             }
@@ -553,11 +676,12 @@ void enemy_bat_draw() {
         //Large enemies are indices 0-1, small enemies start at index 2.
         Uint8 current_slot = 0;
 
-        startPosY = 10;
+        //Same spots as the first two 4Large enemies.
+        startPosY = 6;
         for(i = 0; i < totalLargeEnemies; i++) {
 
             current_slot = i;
-            drawEnemy(picassignment[enemyNums[current_slot]], palassignment[enemyNums[current_slot]], startPosX, startPosY);
+            drawEnemyGroup(enemyNums[current_slot], startPosX, startPosY);
 
             slotNum = battle_formation_2_order[current_slot];
 
@@ -579,13 +703,8 @@ void enemy_bat_draw() {
                     enemy3_num--;
                 }
             }
-            
-            if(i == 2) {
-                startPosX += 6;
-                startPosY -= 12;
-            } else {
-                startPosY += 6;
-            }
+
+            startPosY += 6;
         }
 
         startPosY = 10;
@@ -594,7 +713,7 @@ void enemy_bat_draw() {
 
         for(i = 0; i < totalSmallEnemies; i++) {
             current_slot = i + 2;
-            drawEnemy(picassignment[enemyNums[current_slot]], palassignment[enemyNums[current_slot]], startPosX, startPosY);
+            drawEnemyGroup(enemyNums[current_slot], startPosX, startPosY);
 
 
             slotNum = battle_formation_2_order[current_slot];
@@ -631,11 +750,19 @@ void enemy_bat_draw() {
 
     if(battle.battle_type == 3) {
         numOfFiendSlots = 1;
-        drawFiendChaos((Uint8 *) FIEND_TSA + (battle.pic_assignment * 0x50), 8, 8, 4, 8);
+        if(MSX_ON) {
+            msxDrawBoss(8, 8, 4, 8);
+        } else {
+            drawFiendChaos((Uint8 *) FIEND_TSA + (battle.pic_assignment * 0x50), 8, 8, 4, 8);
+        }
     }
     if(battle.battle_type == 4) {
         numOfChaosSlots = 1;
-        drawFiendChaos((Uint8 *) CHAOS_TSA, 14, 12, 2, 6);
+        if(MSX_ON) {
+            msxDrawBoss(14, 12, 2, 6);
+        } else {
+            drawFiendChaos((Uint8 *) CHAOS_TSA, 14, 12, 2, 6);
+        }
     }
     if(battle.battle_type >= 3) {
         slotToEnemyNum[0] = 0;
@@ -1638,10 +1765,22 @@ void shakeScreen() {
 }
 
 #define BATTLE_FADE_PAL_COUNT (9)
+#define BATTLE_FADE_BACKDROP_PAL (2)
 #define BATTLE_FADE_FIRST_SPRITE_PAL (5)
+
+//The NES enemy palettes. MSX enemies use msxEnemyPal instead.
+#define BATTLE_FADE_ENEMY_PAL_0 (3)
+#define BATTLE_FADE_ENEMY_PAL_1 (4)
 
 //NES color indices of each battle palette, kept so fades can be computed from them.
 static Uint8 battleNesPal[BATTLE_FADE_PAL_COUNT][4];
+
+//The boxes and cursor fade from their MSX colors in MSX mode.
+#define BATTLE_FADE_BOX_PAL_0 (0)
+#define BATTLE_FADE_BOX_PAL_1 (1)
+#define BATTLE_FADE_CURSOR_PAL (7)
+#define BATTLE_FADE_MSX_PAL(p) ((p) == BATTLE_FADE_BOX_PAL_0 || (p) == BATTLE_FADE_BOX_PAL_1 || (p) == BATTLE_FADE_CURSOR_PAL)
+static Uint32 battleMsxPal[BATTLE_FADE_PAL_COUNT][4];
 static Uint32 *battleFadePal[BATTLE_FADE_PAL_COUNT] = {
     menu_pal_0, menu_pal_1, menu_pal_2, menu_pal_3, menu_pal_4,
     player_pal_0, player_pal_1, cursor_pal_0, stone_pal
@@ -1665,6 +1804,11 @@ void initBattleFadePalettes(Uint8 backdrop) {
     copyNesPalette(battleNesPal[6], charPal + 4);
     copyNesPalette(battleNesPal[7], (Uint8*) CURSOR_PALETTE);
     copyNesPalette(battleNesPal[8], charPal + 12);
+    if(MSX_ON) {
+        msxBoxPalette(MSX_BOX_BATTLE, battleMsxPal[BATTLE_FADE_BOX_PAL_0]);
+        msxBoxPalette(MSX_BOX_BATTLE, battleMsxPal[BATTLE_FADE_BOX_PAL_1]);
+        msxCursorPalette((Uint8 *)CURSOR_PALETTE, battleMsxPal[BATTLE_FADE_CURSOR_PAL]);
+    }
 }
 
 //NES FadeOutOneShade applied 'shades' times.
@@ -1681,8 +1825,27 @@ static Uint8 fadeNesColor(Uint8 color, Uint8 shades) {
 
 static void shadeBattlePalettes(Uint8 first, Uint8 last, Uint8 shades) {
     for(Uint8 p = first; p <= last; p++) {
+        if(MSX_ON && (p == BATTLE_FADE_ENEMY_PAL_0 || p == BATTLE_FADE_ENEMY_PAL_1 || p == BATTLE_FADE_BACKDROP_PAL)) {
+            continue;
+        }
         for(Uint8 i = 0; i < 4; i++) {
-            battleFadePal[p][i] = nes_pal[fadeNesColor(battleNesPal[p][i], shades)];
+            battleFadePal[p][i] = MSX_ON && BATTLE_FADE_MSX_PAL(p) ? msxFadeColor(battleMsxPal[p][i], shades, BATTLE_FADE_SHADES)
+                                : nes_pal[fadeNesColor(battleNesPal[p][i], shades)];
+        }
+    }
+    if(MSX_ON && first <= BATTLE_FADE_ENEMY_PAL_0) {
+        msxShadeEnemyPalettes(shades);
+    }
+    if(MSX_ON && first <= BATTLE_FADE_BACKDROP_PAL && last >= BATTLE_FADE_BACKDROP_PAL) {
+        const Uint32 *src = msxPalette(MSX_ID_BATTLE_PAL);
+        for(Uint8 i = 0; i < 16; i++) {
+            menu_pal_2[i] = msxFadeColor(src[i], shades, BATTLE_FADE_SHADES);
+        }
+    }
+    if(MSX_ON && last >= BATTLE_FADE_FIRST_SPRITE_PAL) {
+        const Uint32 *src = msxPalette(MSX_ID_BATTLE_PAL);
+        for(Uint8 i = 0; i < 16; i++) {
+            msx_bat_pal[i] = msxFadeColor(src[i], shades, BATTLE_FADE_SHADES);
         }
     }
 }
@@ -1693,10 +1856,17 @@ static void uploadBattlePalettes() {
     vidSetPalette(VID_NBG1, 32, 16, menu_pal_2);
     vidSetPalette(VID_NBG1, 48, 16, menu_pal_3);
     vidSetPalette(VID_NBG1, 64, 16, menu_pal_4);
+    if(MSX_ON) {
+        vidSetPalette(VID_NBG1, 80, 16, menu_pal_5);
+        vidSetPalette(VID_NBG1, 96, 16, menu_pal_6);
+    }
     vidSetPalette(VID_SPR, 16, 16, player_pal_0);
     vidSetPalette(VID_SPR, 32, 16, player_pal_1);
     vidSetPalette(VID_SPR, 64, 16, cursor_pal_0);
     vidSetPalette(VID_SPR, STONE_PALETTE_CRAM, 16, stone_pal);
+    if(MSX_ON) {
+        vidSetPalette(VID_SPR, MSX_BATTLE_CRAM, 16, msx_bat_pal);
+    }
 }
 
 void setBattleShade(Uint8 shades) {
@@ -1712,9 +1882,16 @@ void restoreBattleSpritePalettes() {
     uploadBattlePalettes();
 }
 
+Uint8 battleBoxTopShift() {
+    return MSX_ON ? 1 : 0;
+}
+
 //The back screen shows through color 0, like the NES BG color. It takes RGB555.
 void setBattleBackColor(Uint8 nesColor) {
-    Uint32 color = nes_pal[nesColor];
+    setBattleBackRgb(nes_pal[nesColor]);
+}
+
+void setBattleBackRgb(Uint32 color) {
     Uint8 r = color & 0xFF;
     Uint8 g = (color >> 8) & 0xFF;
     Uint8 b = (color >> 16) & 0xFF;

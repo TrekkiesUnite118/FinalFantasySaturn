@@ -46,29 +46,9 @@ void sprite_init() {
     initCharBattlePalettes();
     initCursorPalette();
 
-    Uint16 bsprite_num = 72;
-    Uint16 bsprite_size = 192;
-    Uint16 bsprite_width = 16;
-    Uint16 bsprite_height = 24;
     total_sprites += font_num;
-    Uint16 battlePalette = 16;
-    for (i = 0; i < bsprite_num; i++) {
-        if((i >= 6 && i < 18)  || (i >= 30 && i < 36) || (i >= 48 && i < 56) || i > 66)
-        {
-            battlePalette = 16;
-        } else {
-            battlePalette = 32;
-        }
-        if( i == 5 || i == 11 || i == 17 || i == 23 || i == 29 || i == 35 || i == 41
-        || i == 47 || i == 53 || i == 59 || i == 65 || i == 71) {
-            SPR_2SetChar(i + total_sprites, COLOR_0, battlePalette, bsprite_height, bsprite_width, (Uint8 *)(LWRAM_BATTLE_SPRITES) + (i * bsprite_size));
-        }  else {
-            SPR_2SetChar(i + total_sprites, COLOR_0, battlePalette, bsprite_width, bsprite_height, (Uint8 *)(LWRAM_BATTLE_SPRITES) + (i * bsprite_size));
-        }
-
-    }
-
-    total_sprites += bsprite_num;
+    //Registered once mapSpriteStart is set.
+    total_sprites += BATTLE_SPRITE_COUNT;
     Uint16 weaponSprite_num = 28;
     Uint16 weaponSprite_size = 128;
     Uint16 weaponSprite_width = 16;
@@ -104,6 +84,7 @@ void sprite_init() {
     SCL_SetColRam(SCL_SPR, 64, 16, &cursor_pal_0);
     SCL_SetColRam(SCL_SPR, STONE_PALETTE_CRAM, 16, &stone_pal);
     mapSpriteCramStart = 112;
+    registerBattleSprites();
 
     SCL_DisplayFrame();
 

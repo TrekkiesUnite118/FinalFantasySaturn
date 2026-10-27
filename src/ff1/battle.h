@@ -735,4 +735,21 @@ void restoreBattleSpritePalettes();
  */
 void setBattleBackColor(Uint8 nesColor);
 
+/**
+ * @brief Gets how many tile rows the enemy and party box tops move down.
+ *
+ * The MSX backdrops are 3 rows, so those boxes start a row lower. Their
+ * bottoms and everything else stay at the NES positions.
+ *
+ * @return 1 in MSX mode, else 0.
+ */
+Uint8 battleBoxTopShift(void);
+
+/**
+ * @brief Sets the back screen color from a 0x00BBGGRR color, written at the next V-blank in.
+ *
+ * @param color The color.
+ */
+void setBattleBackRgb(Uint32 color);
+
 #endif

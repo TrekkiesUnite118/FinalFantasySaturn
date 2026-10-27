@@ -17,6 +17,18 @@
 void sysDisplayOff(void);
 
 /**
+ * @brief Turns the display off until sysShowDisplay, keeping SCL from turning it back on.
+ */
+void sysBlankDisplay(void);
+
+/**
+ * @brief Turns the display back on after frames more V-blanks.
+ *
+ * @param frames V-blanks to wait, at least 1.
+ */
+void sysShowDisplay(Uint8 frames);
+
+/**
  * @brief Sets the V-blank handlers and turns the V-blank interrupts on.
  *
  * @param in Runs at V-blank in, before SBL's V-blank in work.

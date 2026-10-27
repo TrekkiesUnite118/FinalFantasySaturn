@@ -135,6 +135,13 @@ void sm_vblank_in(void);
  */
 void smSetEmphasis(Uint8 emphasis);
 
+/**
+ * @brief Reloads the MSX map palettes faded toward black.
+ *
+ * @param step Fade step, 0 (none) to MSX_FADE_STEPS (black).
+ */
+void smSetMsxFade(Uint8 step);
+
 //For nbgscroll.c.
 /**
  * @brief Loads the map, dialogue box and player palettes into color RAM.

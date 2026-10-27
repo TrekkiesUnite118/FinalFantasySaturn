@@ -13,10 +13,36 @@
 #include "vblank.h"
 #include "minimap.h"
 #include "music.h"
+#include "msxgfx.h"
 
 #define MINIMAP_DECOR_TILES (0x30)
 #define MINIMAP_TITLE_TILES (0x28)
 #define MINIMAP_MAX_MARKERS (63)
+
+#define MM_PAL_MAP (0)
+#define MM_PAL_TITLE (1)
+#define MM_PAL_DECOR (2)
+
+//MSX mode: the dragon and title tiles go after the 256 canvas tiles.
+#define MM_CANVAS_TILES (256)
+#define MM_MSX_DECOR_CHAR (MM_CANVAS_TILES)
+#define MM_MSX_TITLE_CHAR (MM_MSX_DECOR_CHAR + MINIMAP_DECOR_TILES)
+//MSX_ID_MINIMAP_TITLE is 14x5 tiles with the lettering at the top left.
+#define MM_MSX_SRC_TITLE_W (14)
+#define MM_MSX_SRC_TITLE_H (5)
+//The 108x34 lettering centred on the NES title's 12x4 tile area, at pixel 74, 22.
+#define MM_MSX_TITLE_W (14)
+#define MM_MSX_TITLE_H (5)
+#define MM_MSX_TITLE_COL (9)
+#define MM_MSX_TITLE_ROW (2)
+#define MM_MSX_TITLE_SHIFT_X (2)
+#define MM_MSX_TITLE_SHIFT_Y (6)
+#define MM_TOTAL_TILES (MM_MSX_TITLE_CHAR + (MM_MSX_TITLE_W * MM_MSX_TITLE_H))
+
+//MAPDSP colors for the background and the NES map colors 1-3.
+#define MM_MSX_BG (2)
+#define MM_RGB15_MASK (0xF8F8F8)
+static const Uint8 mmMsxDotColor[3] = {9, 11, 10};
 
 //Unused sprite character numbers and CRAM bank.
 //After the overworld player's 96 characters at mapSpriteStart.
@@ -37,11 +63,12 @@ enum {
 
 //The NES BG pattern table, which the minimap uses as its canvas.
 static Uint8 mmCanvas[0x1000];
-static Uint32 mmSatTiles[0x2000 / 4];
+static Uint32 mmSatTiles[MM_TOTAL_TILES * 8];
 static Uint8 mmDrawBuf[0x100]; //NES mm_drawbuf: 8 pixel rows of 16 tiles.
+static Uint8 mmMsxTitle[MM_MSX_TITLE_W * MM_MSX_TITLE_H * 32];
 
-static Uint8 mmDirtyTiles[256];
-static Uint8 mmTileQueued[256];
+static Uint16 mmDirtyTiles[MM_TOTAL_TILES];
+static Uint8 mmTileQueued[MM_TOTAL_TILES];
 static volatile Uint16 mmDirtyCount;
 
 static Uint32 mmSpriteChr[16];
@@ -64,18 +91,22 @@ static Uint8 mmColorMarker;
 static Uint8 mmSpritesOn;
 static PadBits mmPadPrev;
 
-static void updateTile(Uint8 tile) {
-    convertNesTilesToSatTiles(&mmCanvas[tile * 16], (Uint8 *)mmSatTiles + (tile * 32), 16);
+static void queueTile(Uint16 tile) {
     if(!mmTileQueued[tile]) {
         mmTileQueued[tile] = TRUE;
         mmDirtyTiles[mmDirtyCount++] = tile;
     }
 }
 
+static void updateTile(Uint8 tile) {
+    convertNesTilesToSatTiles(&mmCanvas[tile * 16], (Uint8 *)mmSatTiles + (tile * 32), 16);
+    queueTile(tile);
+}
+
 //VRAM A1 has no CPU access cycles during display, so tiles are copied in VBlank.
 void minimap_vblank_in() {
     for(Uint16 i = 0; i < mmDirtyCount; i++) {
-        Uint8 tile = mmDirtyTiles[i];
+        Uint16 tile = mmDirtyTiles[i];
         volatile Uint32 *dst = (volatile Uint32 *)(VID_VRAM_A1 + (tile * 32));
         Uint32 *src = &mmSatTiles[tile * 8];
         for(Uint8 j = 0; j < 8; j++) {
@@ -96,6 +127,54 @@ static void drawMinimapNT() {
             Uint8 shift = ((r & 0x02) << 1) | (c & 0x02);
             Uint8 pal = (attr[((r >> 2) * 8) + (c >> 2)] >> shift) & 0x03;
             menuPlane[(r + 1) % 30][c + CENTER_ADJUSTMENT] = (pal << 12) | nt[(r * 32) + c];
+        }
+    }
+}
+
+//MSX mode: the dragon cells point at the MSX dragon tiles and the MSX title covers the NES one.
+static void drawMsxMinimapNT() {
+    Uint8 *nt = (Uint8 *)MINIMAP_NT;
+    Uint8 *destLo = (Uint8 *)MINIMAP_DECOR_DEST_LO;
+    Uint8 *destHi = (Uint8 *)MINIMAP_DECOR_DEST_HI;
+    Uint8 decorIndex[256];
+
+    memset(decorIndex, 0xFF, sizeof(decorIndex));
+    for(Uint8 i = 0; i < MINIMAP_DECOR_TILES; i++) {
+        decorIndex[(destLo[i] | (destHi[i] << 8)) >> 4] = i;
+    }
+    for(Uint8 r = 0; r < 30; r++) {
+        for(Uint8 c = 0; c < 32; c++) {
+            Uint8 i = decorIndex[nt[(r * 32) + c]];
+            if(i != 0xFF) {
+                menuPlane[(r + 1) % 30][c + CENTER_ADJUSTMENT] = (MM_PAL_DECOR << 12) | (MM_MSX_DECOR_CHAR + i);
+            }
+        }
+    }
+
+    for(Uint8 r = 0; r < MM_MSX_TITLE_H; r++) {
+        for(Uint8 c = 0; c < MM_MSX_TITLE_W; c++) {
+            menuPlane[MM_MSX_TITLE_ROW + r][MM_MSX_TITLE_COL + c + CENTER_ADJUSTMENT] =
+                (MM_PAL_TITLE << 12) | (MM_MSX_TITLE_CHAR + (r * MM_MSX_TITLE_W) + c);
+        }
+    }
+}
+
+//Copies the MSX title lettering into mmMsxTitle, moved to its place in the title tiles.
+static void buildMsxTitle() {
+    const Uint8 *src = msxData(MSX_ID_MINIMAP_TITLE);
+
+    memset(mmMsxTitle, 0x00, sizeof(mmMsxTitle));
+    for(Uint8 y = 0; y < MM_MSX_SRC_TITLE_H * 8; y++) {
+        for(Uint8 x = 0; x < MM_MSX_SRC_TITLE_W * 8; x++) {
+            Uint8 b = src[((((y / 8) * MM_MSX_SRC_TITLE_W) + (x / 8)) * 32) + ((y % 8) * 4) + ((x % 8) / 2)];
+            Uint8 v = (x & 1) ? (b & 0x0F) : (b >> 4);
+            Uint8 dx = x + MM_MSX_TITLE_SHIFT_X;
+            Uint8 dy = y + MM_MSX_TITLE_SHIFT_Y;
+            if(v == 0 || dx >= MM_MSX_TITLE_W * 8 || dy >= MM_MSX_TITLE_H * 8) {
+                continue;
+            }
+            Uint8 *dst = &mmMsxTitle[((((dy / 8) * MM_MSX_TITLE_W) + (dx / 8)) * 32) + ((dy % 8) * 4) + ((dx % 8) / 2)];
+            *dst |= (dx & 1) ? v : (v << 4);
         }
     }
 }
@@ -155,6 +234,17 @@ static void drawGraphicStep(Uint8 *chr, Uint8 *destLo, Uint8 *destHi, Uint8 coun
     }
 }
 
+//MSX version of drawGraphicStep: the bitplane row's pixel row of every tile.
+static void drawMsxGraphicStep(const Uint8 *tiles, Uint16 firstChar, Uint8 count, Uint8 step) {
+    Uint8 row = ((Uint8 *)MINIMAP_BITPLANE_LUT)[step] & 0x07;
+
+    drawSfx();
+    for(Uint8 i = 0; i < count; i++) {
+        memcpy((Uint8 *)mmSatTiles + ((firstChar + i) * 32) + (row * 4), tiles + (i * 32) + (row * 4), 4);
+        queueTile(firstChar + i);
+    }
+}
+
 //NES DrawDungeonSprite markers, in the order PrepRow makes them. The NES only shows 8 sprites per
 //scanline, in OAM order with "you are here" first, so a marker whose one pixel row is past that is hidden.
 static void findMarkers() {
@@ -209,16 +299,41 @@ void initMinimap() {
             pals[p][i] = nes_pal[bgPal[(p * 4) + i]];
         }
     }
+    if(MSX_ON) {
+        const Uint32 *pal = msxPalette(MSX_ID_MINIMAP_PAL);
+        for(Uint8 i = 0; i < 3; i++) {
+            pals[MM_PAL_MAP][i + 1] = pal[mmMsxDotColor[i]];
+        }
+        for(Uint8 i = 0; i < 16; i++) {
+            pals[MM_PAL_TITLE][i] = pal[i];
+            pals[MM_PAL_DECOR][i] = pal[i];
+        }
+        //The back screen color is 15 bit, so the dragon's background is cut to match it.
+        pals[MM_PAL_TITLE][MM_MSX_BG] = pal[MM_MSX_BG] & MM_RGB15_MASK;
+        pals[MM_PAL_DECOR][MM_MSX_BG] = pal[MM_MSX_BG] & MM_RGB15_MASK;
+        buildMsxTitle();
+    }
 
     clearMenuPlane();
     drawMinimapNT();
+    if(MSX_ON) {
+        drawMsxMinimapNT();
+    }
 
     memset(mmCanvas, 0x00, sizeof(mmCanvas));
     memset(mmSatTiles, 0x00, sizeof(mmSatTiles));
     memset(mmTileQueued, 0x00, sizeof(mmTileQueued));
     mmDirtyCount = 0;
     static_init_tiles((Uint8 *)mmSatTiles);
-    setBattleBackColor(bgPal[0]);
+    if(MSX_ON) {
+        //static_init_tiles only loads the canvas tiles.
+        for(Uint16 t = MM_CANVAS_TILES; t < MM_TOTAL_TILES; t++) {
+            queueTile(t);
+        }
+        setBattleBackRgb(pals[MM_PAL_DECOR][MM_MSX_BG]);
+    } else {
+        setBattleBackColor(bgPal[0]);
+    }
 
     convertNesTilesToSatTiles((Uint8 *)MINIMAP_SPRITE_CHR, (Uint8 *)mmSpriteChr, 0x20);
     sprSetChar(MINIMAP_HERE_CHAR, SPRITE_4BPP, MINIMAP_SPRITE_CRAM, 8, 8, (Uint8 *)mmSpriteChr);
@@ -257,7 +372,11 @@ void doMinimap() {
             }
             break;
         case MM_DECOR:
-            drawGraphicStep((Uint8 *)MINIMAP_DECOR_CHR, (Uint8 *)MINIMAP_DECOR_DEST_LO, (Uint8 *)MINIMAP_DECOR_DEST_HI, MINIMAP_DECOR_TILES, mmStep);
+            if(MSX_ON) {
+                drawMsxGraphicStep(msxData(MSX_ID_MINIMAP_DRAGON), MM_MSX_DECOR_CHAR, MINIMAP_DECOR_TILES, mmStep);
+            } else {
+                drawGraphicStep((Uint8 *)MINIMAP_DECOR_CHR, (Uint8 *)MINIMAP_DECOR_DEST_LO, (Uint8 *)MINIMAP_DECOR_DEST_HI, MINIMAP_DECOR_TILES, mmStep);
+            }
             mmStep++;
             if(mmStep == 16) {
                 mmStep = 0;
@@ -265,7 +384,11 @@ void doMinimap() {
             }
             break;
         case MM_TITLE:
-            drawGraphicStep((Uint8 *)MINIMAP_TITLE_CHR, (Uint8 *)MINIMAP_TITLE_DEST_LO, (Uint8 *)MINIMAP_TITLE_DEST_HI, MINIMAP_TITLE_TILES, mmStep);
+            if(MSX_ON) {
+                drawMsxGraphicStep(mmMsxTitle, MM_MSX_TITLE_CHAR, MM_MSX_TITLE_W * MM_MSX_TITLE_H, mmStep);
+            } else {
+                drawGraphicStep((Uint8 *)MINIMAP_TITLE_CHR, (Uint8 *)MINIMAP_TITLE_DEST_LO, (Uint8 *)MINIMAP_TITLE_DEST_HI, MINIMAP_TITLE_TILES, mmStep);
+            }
             mmStep++;
             if(mmStep == 16) {
                 mmStep = 0;

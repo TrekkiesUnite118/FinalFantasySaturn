@@ -13,6 +13,7 @@
 #include "music.h"
 #include "story.h"
 #include "romaddr.h"
+#include "msxgfx.h"
 
 #define CREDITS_PAGES (4)
 
@@ -36,7 +37,31 @@
 #define THE_END_SIZE (80)
 #define THE_END_CLEAR_TILES (0x70)
 
+//MSX mode: the 256x212 picture is 32x27 tiles from row 3, which puts its box area on the NES story box.
+//"The End" follows it, sized for the box interior.
+#define STORY_MSX_CHAR (0x100)
+#define STORY_MSX_PIC_W (32)
+#define STORY_MSX_PIC_H (27)
+#define STORY_MSX_PIC_ROW (3)
+#define STORY_MSX_PIC_LINES (212)
+//The layer scrolls up to centre the picture on the 240 lines. The shutters move with it.
+#define STORY_MSX_SCROLL_Y (((STORY_MSX_PIC_ROW * 8) * 2 + STORY_MSX_PIC_LINES - 240) / 2)
+#define STORY_MSX_PIC_TILES (STORY_MSX_PIC_W * STORY_MSX_PIC_H)
+#define STORY_MSX_END_CHAR (STORY_MSX_CHAR + STORY_MSX_PIC_TILES)
+#define STORY_MSX_END_W (16)
+#define STORY_MSX_END_H (10)
+#define STORY_MSX_BLANK_CHAR (STORY_MSX_END_CHAR + (STORY_MSX_END_W * STORY_MSX_END_H)) //Outside the picture.
+#define STORY_MSX_TILES (STORY_MSX_BLANK_CHAR + 1 - STORY_MSX_CHAR)
+#define STORY_MSX_UPLOAD_TILES (64) //Per V-blank.
+#define STORY_PAL_PICTURE (0)
+#define STORY_PAL_THE_END (1)
+#define STORY_MSX_BOX_INSIDE (2)
+//The shutters are 15 bit VDP1 polygons, so the box inside color is cut to match them.
+#define STORY_RGB15_MASK (0xF8F8F8)
+
 enum {
+    STORY_STEP_FADE_IN,
+    STORY_STEP_FADE_OUT,
     STORY_STEP_START,
     STORY_STEP_FIRST_PAGE,
     STORY_STEP_PAGE_DRAW,
@@ -86,6 +111,12 @@ static Uint32 theEndTiles[100][8];
 static volatile Sint16 theEndDirtyTile = -1;
 static volatile Uint8 theEndClearPending;
 
+static Uint8 storyMsx;
+static Uint32 storyFadePal[4][16]; //Palettes the MSX fades go between and black.
+static Uint8 storyFadeStep;
+static Uint8 storyFadeCtr;
+static volatile Uint16 storyUploadTile = STORY_MSX_TILES; //Next MSX tile to copy into VRAM.
+
 //Picks the scene TO_STORY sets up.
 void storySelect(Uint8 ending) {
     storyEnding = ending;
@@ -114,8 +145,136 @@ static void storyApplyAttr(Uint8 first, Uint8 last) {
     }
 }
 
+static void storyApplyFade() {
+    Uint32 *pals[4] = {menu_pal_0, menu_pal_1, menu_pal_2, menu_pal_3};
+
+    for(Uint8 p = 0; p < 4; p++) {
+        for(Uint8 i = 0; i < 16; i++) {
+            pals[p][i] = msxFadeColor(storyFadePal[p][i], storyFadeStep, MSX_FADE_STEPS);
+        }
+        vidSetPalette(VID_NBG1, p * 16, 16, pals[p]);
+    }
+}
+
+//The MSX fades to black and back instead of the NES palette cycles, at the same step rate. Returns TRUE when done.
+static Uint8 storyFadeFrame(Sint8 dir) {
+    if(storyFadeCtr != 0 && (storyFadeCtr & 0x03) == 0) {
+        if(dir < 0 ? storyFadeStep == 0 : storyFadeStep == MSX_FADE_STEPS) {
+            return TRUE;
+        }
+        storyFadeStep += dir;
+        storyApplyFade();
+    }
+    storyFadeCtr++;
+    return FALSE;
+}
+
+Uint8 storyFadeInFrame() {
+    return !storyMsx || (storyUploadTile == STORY_MSX_TILES && storyFadeFrame(-1));
+}
+
+Sint16 storyScrollY() {
+    return storyMsx ? STORY_MSX_SCROLL_Y : 0;
+}
+
+Uint32 storyMsxBoxColor(Uint8 color) {
+    return storyFadePal[STORY_BOX_PAL][color];
+}
+
+//Fades out from the palettes on screen.
+static void storyStartFadeOut() {
+    Uint32 *pals[4] = {menu_pal_0, menu_pal_1, menu_pal_2, menu_pal_3};
+
+    for(Uint8 p = 0; p < 4; p++) {
+        for(Uint8 i = 0; i < 16; i++) {
+            storyFadePal[p][i] = pals[p][i];
+        }
+    }
+    storyClosed = 0;
+    storyFadeStep = 0;
+    storyFadeCtr = 0;
+    storyStep = STORY_STEP_FADE_OUT;
+}
+
+//Tile n of the MSX picture, then of "The End", from their 4bpp bitmaps, then the blank tile.
+static void storyMsxTile(Uint16 n, volatile Uint32 *dst) {
+    const Uint8 *src;
+    Uint16 w;
+    Uint16 lines;
+
+    if(n < STORY_MSX_PIC_TILES) {
+        src = msxData(storyEnding ? MSX_ID_ENDING : MSX_ID_BRIDGE);
+        w = STORY_MSX_PIC_W;
+        lines = STORY_MSX_PIC_LINES;
+    } else if(n < STORY_MSX_BLANK_CHAR - STORY_MSX_CHAR) {
+        n -= STORY_MSX_PIC_TILES;
+        src = msxData(MSX_ID_THE_END);
+        w = STORY_MSX_END_W;
+        lines = STORY_MSX_END_H * 8;
+    } else {
+        for(Uint8 y = 0; y < 8; y++) {
+            dst[y] = 0;
+        }
+        return;
+    }
+    Uint16 y0 = (n / w) * 8;
+    for(Uint8 y = 0; y < 8; y++) {
+        if(y0 + y >= lines) {
+            dst[y] = 0;
+            continue;
+        }
+        const Uint8 *row = src + ((y0 + y) * w * 4) + ((n % w) * 4);
+        dst[y] = (row[0] << 24) | (row[1] << 16) | (row[2] << 8) | row[3];
+    }
+}
+
+static void setupMsxStory() {
+    const Uint32 *pic = msxPalette(storyEnding ? MSX_ID_ENDING_PAL : MSX_ID_BRIDGE_PAL);
+    const Uint32 *end = msxPalette(MSX_ID_THE_END_PAL);
+
+    memset(storyFadePal, 0, sizeof(storyFadePal));
+    for(Uint8 i = 0; i < 16; i++) {
+        storyFadePal[STORY_PAL_PICTURE][i] = pic[i];
+        storyFadePal[STORY_PAL_THE_END][i] = end[i];
+    }
+    msxBoxPalette(storyEnding ? MSX_BOX_ENDING : MSX_BOX_BRIDGE, storyFadePal[STORY_BOX_PAL]);
+    storyFadePal[STORY_BOX_PAL][STORY_MSX_BOX_INSIDE] &= STORY_RGB15_MASK;
+    storyFadePal[STORY_PAL_THE_END][STORY_MSX_BOX_INSIDE] &= STORY_RGB15_MASK;
+    storyFadeStep = MSX_FADE_STEPS;
+    storyFadeCtr = 0;
+    storyApplyFade();
+
+    for(Uint8 r = 0; r < 64; r++) {
+        for(Uint8 c = 0; c < 64; c++) {
+            menuPlane[r][c] = STORY_MSX_BLANK_CHAR;
+        }
+    }
+    for(Uint8 r = 0; r < STORY_MSX_PIC_H; r++) {
+        for(Uint8 c = 0; c < STORY_MSX_PIC_W; c++) {
+            menuPlane[STORY_MSX_PIC_ROW + r][c + CENTER_ADJUSTMENT] =
+                (STORY_PAL_PICTURE << 12) | (STORY_MSX_CHAR + (r * STORY_MSX_PIC_W) + c);
+        }
+    }
+    //The NES pictures have the empty box in their nametables.
+    Uint16 (*savedPlane)[64] = drawPlane;
+    drawPlane = menuPlane;
+    drawBox(STORY_BOX_X, STORY_BOX_Y, STORY_BOX_W, STORY_BOX_H, STORY_BOX_PAL);
+    drawPlane = savedPlane;
+    storyUploadTile = 0;
+}
+
+//"The End" in the box interior, for the shutters to open on.
+static void drawMsxTheEnd() {
+    for(Uint8 r = 0; r < STORY_MSX_END_H; r++) {
+        for(Uint8 c = 0; c < STORY_MSX_END_W; c++) {
+            menuPlane[STORY_BOX_Y + 1 + r][STORY_BOX_X + 1 + c + CENTER_ADJUSTMENT] =
+                (STORY_PAL_THE_END << 12) | (STORY_MSX_END_CHAR + (r * STORY_MSX_END_W) + c);
+        }
+    }
+}
+
 //NES LoadBridgeSceneGFX/LoadEpilogueSceneGFX, then Bridge_StartPPU/Ending_StartPPU.
-void setupStoryScreen() {
+void setupStoryScreen(Uint8 msx) {
     Uint8 *nt = storyEnding ? EPILOGUE_NT : BRIDGE_NT;
     Uint8 *pal = storyEnding ? LUT_ENDING_PAL : LUT_BRIDGE_PAL;
 
@@ -148,7 +307,15 @@ void setupStoryScreen() {
         menu_pal_2[i] = nes_pal[storyPal[8 + i]];
         menu_pal_3[i] = nes_pal[storyPal[12 + i]];
     }
+    storyMsx = msx;
+    storyUploadTile = STORY_MSX_TILES;
+    if(msx) {
+        setupMsxStory();
+    }
     static_init_tiles((Uint8 *)LWRAM_BUFFER);
+    if(msx) {
+        static_move_to(0, FIXED(STORY_MSX_SCROLL_Y));
+    }
 
     if(!storyEnding) {
         music_track = MUSIC_BRIDGE;
@@ -159,7 +326,7 @@ void setupStoryScreen() {
     storyPadPrev = PadData1;
     theEndDirtyTile = -1;
     theEndClearPending = FALSE;
-    storyStep = STORY_STEP_START;
+    storyStep = msx ? STORY_STEP_FADE_IN : STORY_STEP_START;
 }
 
 //NES Story_DrawText for credits: strings of raw tiles, each after a 2 byte PPU address. Returns the string count.
@@ -226,6 +393,9 @@ static void storyNextPage() {
         }
         //NES EnterEndingScene @StoryExit: the box is redrawn empty and opened for "The End".
         drawBox(STORY_BOX_X, STORY_BOX_Y, STORY_BOX_W, STORY_BOX_H, STORY_BOX_PAL);
+        if(storyMsx) {
+            drawMsxTheEnd();
+        }
         storyWait = STORY_BOX_H;
         storyStep = STORY_STEP_END_BOX;
         return;
@@ -402,6 +572,10 @@ static void storyPalCycleFrame() {
 
 //The minigame leaves through the same cycle out as the bridge scene.
 void storyStartPalCycle() {
+    if(MSX_ON) {
+        storyStartFadeOut();
+        return;
+    }
     storyClosed = 0;
     storyPalCycCtr = 0;
     storyStep = STORY_STEP_PAL_CYCLE;
@@ -413,6 +587,16 @@ void doStory() {
     storyPadPrev = PadData1;
 
     switch(storyStep) {
+        case STORY_STEP_FADE_IN:
+            if(storyFadeInFrame()) {
+                storyStep = STORY_STEP_START;
+            }
+            break;
+        case STORY_STEP_FADE_OUT:
+            if(storyFadeFrame(1)) {
+                exitOwMenu();
+            }
+            break;
         case STORY_STEP_START:
             //Story_StartPPU shows the $2000 nametable for a frame before the first page closes it.
             storyClosed = 0;
@@ -439,7 +623,7 @@ void doStory() {
             if(storyShutterFrame(-1)) {
                 if(storyEnding && storyPage >= *LUT_ENDING_LAST_PAGE) {
                     storyWait = THE_END_CLEAR_TILES / 8;
-                    theEndStep = THE_END_CLEAR;
+                    theEndStep = storyMsx ? THE_END_DONE : THE_END_CLEAR;
                     storyStep = STORY_STEP_THE_END;
                 } else {
                     //NES Story_Wait: 512 frames, or until A or B unless input is dropped.
@@ -474,6 +658,11 @@ void doStory() {
             if(--storyWait == 0) {
                 //Empties the box under the shutters so the last page can't show during the cycle out.
                 drawBox(STORY_BOX_X, STORY_BOX_Y, STORY_BOX_W, STORY_BOX_H, STORY_BOX_PAL);
+                //The shutters don't fade, so the MSX fade opens them on the empty box.
+                if(MSX_ON) {
+                    storyStartFadeOut();
+                    break;
+                }
                 storyPalCycCtr = 0;
                 storyStep = STORY_STEP_PAL_CYCLE;
             }
@@ -497,10 +686,10 @@ void story_draw() {
     if(storyClosed == 0) {
         return;
     }
-    color = nes_pal[storyPal[2]];
+    color = storyMsx ? storyFadePal[STORY_BOX_PAL][STORY_MSX_BOX_INSIDE] : nes_pal[storyPal[2]];
     rgb = RGB16_COLOR((color & 0xFF) >> 3, ((color >> 8) & 0xFF) >> 3, ((color >> 16) & 0xFF) >> 3);
     for(Uint8 i = 0; i < SHUTTER_COUNT; i++) {
-        Sint16 top = SHUTTER_TOP + (i * SHUTTER_LINES);
+        Sint16 top = SHUTTER_TOP - storyScrollY() + (i * SHUTTER_LINES);
         xy[0].x = STORY_INNER_LEFT;
         xy[0].y = top;
         xy[1].x = STORY_INNER_RIGHT;
@@ -515,6 +704,10 @@ void story_draw() {
 
 //VRAM A1 has no CPU access cycles during display, so tiles are written in VBlank.
 void story_vblank_in() {
+    for(Uint8 i = 0; i < STORY_MSX_UPLOAD_TILES && storyUploadTile < STORY_MSX_TILES; i++) {
+        storyMsxTile(storyUploadTile, (volatile Uint32 *)(VID_VRAM_A1 + ((STORY_MSX_CHAR + storyUploadTile) * 32)));
+        storyUploadTile++;
+    }
     if(theEndClearPending) {
         memset((Uint8 *)(VID_VRAM_A1 + (THE_END_TILE * 32)), 0, THE_END_CLEAR_TILES * 32);
         theEndClearPending = FALSE;

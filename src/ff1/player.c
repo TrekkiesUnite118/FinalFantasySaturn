@@ -23,6 +23,8 @@
 #include "mainmenu.h"
 #include "story.h"
 #include "bugfix.h"
+#include "msxgfx.h"
+#include "gfxmenu.h"
 
 
 #define DOWN (FIXED(0))
@@ -412,7 +414,11 @@ void update_player_sprites() {
     Uint8 *palPtr_b = (Uint8*) MAPMAN_SPRITE_PALETTE_OFFSET_2 + (2 * curr_class);
 
 
-    initMapManPalette(pal_3, pal_4, palPtr_a, palPtr_b);
+    if(MSX_ON) {
+        msxMapManPalette(curr_class, pal_3, pal_4);
+    } else {
+        initMapManPalette(pal_3, pal_4, palPtr_a, palPtr_b);
+    }
 
     vidSetPalette(VID_SPR, mapSpriteCramStart, 16, &pal_3);
     vidSetPalette(VID_SPR, mapSpriteCramStart + 16, 16, &pal_4);
@@ -973,9 +979,17 @@ static void owLoadObjectSprites() {
         Uint16 cram = (h < (OW_TILE_SHIP - OW_OBJ_TILE_START) / 2) ? OW_OBJECT_CRAM : OW_VEHICLE_CRAM;
         sprSetChar(OW_OBJ_CHAR_START + h, SPRITE_4BPP, cram, 16, 8, halves + h * 64);
     }
-    for(Uint8 i = 0; i < 4; i++) {
-        vehiclePal[i] = nes_pal[pal[8 + i]];
-        objectPal[i] = nes_pal[pal[12 + i]];
+    if(MSX_ON) {
+        const Uint32 *jobs = msxPalette(MSX_ID_MAP_SPRITE_PAL);
+        vehiclePal[1] = objectPal[1] = jobs[1];
+        vehiclePal[2] = jobs[6];
+        vehiclePal[3] = objectPal[2] = jobs[3];
+        objectPal[3] = msxPalette(MSX_ID_MAP_PALS)[10];
+    } else {
+        for(Uint8 i = 0; i < 4; i++) {
+            vehiclePal[i] = nes_pal[pal[8 + i]];
+            objectPal[i] = nes_pal[pal[12 + i]];
+        }
     }
     vidSetPalette(VID_SPR, OW_VEHICLE_CRAM, 16, vehiclePal);
     vidSetPalette(VID_SPR, OW_OBJECT_CRAM, 16, objectPal);
@@ -1421,6 +1435,7 @@ static void owFlyAirship() {
     vehicle = VEH_AIRSHIP;
     vehicleNext = VEH_AIRSHIP;
     music_track = MUSIC_AIRSHIP;
+    musicMsxSfx(MSX_SFX_TAKEOFF);
     owAirAnim = OW_AIR_TAKEOFF;
     owAirAnimY = OW_SPR_Y_BOAT;
     owAirFrames = 0;
@@ -1451,6 +1466,7 @@ static void owTiltAirAnim() {
 //NES LandAirship, after the landing animation. A tile the airship can't land on takes off again.
 static void owLandAirship() {
     if(getTileProperty1(current_y_pos, current_x_pos) & OWTP_AIRSHIP_NOLAND) {
+        musicMsxSfx(MSX_SFX_TAKEOFF);
         owAirAnim = OW_AIR_TAKEOFF;
         owAirAnimY = OW_SPR_Y_BOAT;
         owAirFrames = 0;
@@ -1559,6 +1575,7 @@ static void owFinishFrame() {
             if(owJoyA) {
                 owJoyA = FALSE;
                 if(vehicle == VEH_AIRSHIP) {
+                    musicMsxSfx(MSX_SFX_LANDING);
                     owAirAnim = OW_AIR_LANDING;
                     owAirAnimY = OW_SPR_Y_AIRSHIP;
                     owAirFrames = 0;
@@ -1613,9 +1630,8 @@ static void drawBattleCharacter(SPRITE_INFO *sprite, Uint8 index) {
     Uint8 isDead = isPlayerDead(index) || (battle_char_stats[index].ailment & AIL_DEAD);
     if(!isDead && (battle_char_stats[index].ailment & AIL_STONE)) {
         Uint8 *startXPos = (Uint8 *)BATTLE_CHAR_DEFAULT_XPOS;
-        sprite->char_num = FRAME_BATTLE_START + (party[index].char_class * 6) + 4;
         sprite->xPos = FIXED(startXPos[0] + 24);
-        sprite_draw_pal(sprite, STONE_PALETTE_CRAM);
+        drawStoneSprite(sprite, party[index].char_class);
     } else if(sprite->char_num == FRAME_BATTLE_START + (party[index].char_class * 6) + 5) {
         //NES DrawCharacter draws the 24x16 dead graphic at X $A8 and 8 px below the 16x24 poses,
         //without changing the character's position.
@@ -1838,6 +1854,10 @@ static void castMagic(int partyNum) {
 
     if(battleAnimFrame < total) {
         Uint8 sub = battleAnimFrame % step;
+        //The NES plays the spell sound in PreparePlayerMagAttack, before the walk forward.
+        if(!magicNoDraw && battleAnimFrame == 0) {
+            battleSfx(BTL_SFX_MAGIC);
+        }
         if(!magicNoDraw && sub == 1) {
             setBattleBackColor(magicFlashColor);
         } else if(!magicNoDraw && sub == 3) {
@@ -2110,6 +2130,7 @@ void initPartyItems() {
     bridgeScene = *(Uint8 *)NEW_GAME_BRIDGE_SCENE;
     hasCanoe = *(Uint8 *)NEW_GAME_HAS_CANOE;
     memset(bugFixes, 0, sizeof(bugFixes));
+    gfxMsx = FALSE;
 }
 
 void initBattleEnd(Uint8 phase) {
@@ -2406,6 +2427,9 @@ static void battleEndStepDone() {
 
 #define CHAOS_FORMATION (0x7B)
 #define CHAOS_DISSOLVE_FRAMES (8 * 256)
+//The MSX game restarts the altar effect 50 times, about every 16 frames, while Chaos shakes.
+#define CHAOS_MSX_SFX_FRAMES (16)
+#define CHAOS_MSX_SFX_COUNT (50)
 
 volatile Uint32 *chaosEraseAddr = 0;
 static Uint8 chaosTileRows[256];
@@ -2437,6 +2461,9 @@ static void chaosDissolveFrame() {
     //Halfway through each 256 erases.
     if((chaosDissolveStep & 0xFF) == 0x80) {
         chaosFadeNoise();
+    }
+    if(chaosDissolveStep % CHAOS_MSX_SFX_FRAMES == 0 && chaosDissolveStep < CHAOS_MSX_SFX_FRAMES * CHAOS_MSX_SFX_COUNT) {
+        musicMsxSfx(MSX_SFX_ALTAR);
     }
     Uint8 tile = rand_min_max(0, 0x79);
     Uint8 row = chaosTileRows[tile] & 0x07;
@@ -2888,6 +2915,8 @@ void startBattleTransition() {
     battleTransitionFrame = 0;
     //Only the noise plays during the transition.
     musicApuWrite(0x4015, 0x08);
+    //The MSX game keeps its music going until the battle music.
+    musicMsxSfx(MSX_SFX_BATTLE_START);
     state = BAT_TRANSITION;
 }
 
@@ -3209,8 +3238,7 @@ void drawOBSprite(SPRITE_INFO *sprite, Uint8 member, Uint16 x, Uint16 y) {
     sprite->xPos = FIXED(x);
     sprite->yPos = FIXED(y);
     if(c->ailment == AIL_STONE) {
-        sprite->char_num += 4;
-        sprite_draw_pal(sprite, STONE_PALETTE_CRAM);
+        drawStoneSprite(sprite, c->char_class);
     } else {
         if(c->ailment == AIL_POISON) {
             sprite->char_num += 4;
@@ -3234,10 +3262,19 @@ void lineup_draw() {
 void doBattleTransition() {
     if(battleTransitionFrame < 65) {
         if((battleTransitionFrame & 0x03) == 0) {
-            if(battleReturnSM) {
-                smSetEmphasis((battleTransitionFrame >> 2) & 0x07);
+            Uint8 mode = (battleTransitionFrame >> 2) & 0x07;
+            if(MSX_ON) {
+                //The MSX fades to black and back once per 8 NES modes.
+                Uint8 step = mode <= MSX_FADE_STEPS ? mode : 8 - mode;
+                if(battleReturnSM) {
+                    smSetMsxFade(step);
+                } else {
+                    scroll_set_msx_fade(step);
+                }
+            } else if(battleReturnSM) {
+                smSetEmphasis(mode);
             } else {
-                scroll_set_emphasis((battleTransitionFrame >> 2) & 0x07);
+                scroll_set_emphasis(mode);
             }
         }
         //Restarting the decay each frame holds the noise at full volume.
@@ -3428,10 +3465,6 @@ static void startMagicTurn(Uint8 playerIndex) {
         magicMode = MAGIC_MODE_ALL_PARTY;
     } else {
         magicMode = MAGIC_MODE_ONE_ALLY;
-    }
-    //NES PreparePlayerMagAttack plays it before the walk forward, for spells only.
-    if(act->action == MAGIC) {
-        battleSfx(BTL_SFX_MAGIC);
     }
     turn_exec_state = ANIMATE1;
 }
@@ -4401,6 +4434,9 @@ volatile Uint8 softResetPending = FALSE;
 
 //Back to the prelude. Starting or loading a game sets up the rest.
 void softReset() {
+    if(state == GFX_MENU) {
+        leaveGfxMenu();
+    }
     sm_reset();
     scroll_disable();
     static_disable();

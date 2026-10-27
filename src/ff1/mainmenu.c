@@ -16,6 +16,7 @@
 #include "save.h"
 #include "music.h"
 #include "bugfix.h"
+#include "msxgfx.h"
 
 #define ORB_CHR_SIZE (0x200)
 #define ORB_TILE_START (0x60)
@@ -274,7 +275,7 @@ static Uint8 itemCursorX[3] = {0x10, 0x58, 0xA0};
 static void drawOrbs() {
     for(Uint8 i = 0; i < 4; i++) {
         Uint8 tile = items[ITEM_ORB_START + i] ? orbPos[i][2] : ORB_UNLIT_TILE;
-        Uint16 pal = (items[ITEM_ORB_START + i] ? MM_PAL_ORB : MM_PAL_BORDER) << 12;
+        Uint16 pal = (items[ITEM_ORB_START + i] || MSX_ON ? MM_PAL_ORB : MM_PAL_BORDER) << 12;
         Uint8 x = orbPos[i][0] + CENTER_ADJUSTMENT;
         Uint8 y = orbPos[i][1];
 
@@ -323,11 +324,21 @@ static void drawCharBoxBody(Uint8 member, Uint8 x, Uint8 y) {
 
 //NES EnterMainMenu and DrawMainMenu.
 void setupMainMenuScreen() {
+    setBoxPalette(menu_pal_0, boarderPalette_blue, MSX_BOX_MENU);
     for(Uint8 i = 0; i < 4; i++) {
-        menu_pal_0[i] = nes_pal[boarderPalette_blue[i]];
         menu_pal_1[i] = nes_pal[menuPalLitOrb[i]];
     }
     convertNesTilesToSatTiles((Uint8 *)ORB_CHR, (Uint8 *)(LWRAM_MENU_TILES + (ORB_TILE_START * 32)), ORB_CHR_SIZE);
+    if(MSX_ON) {
+        const Uint32 *pal = msxPalette(MSX_ID_MENU_PAL);
+        for(Uint8 i = 0; i < 16; i++) {
+            menu_pal_1[i] = pal[i];
+        }
+        for(Uint8 i = 0; i < 4; i++) {
+            msxOrbTiles(i, (Uint8 *)(LWRAM_MENU_TILES + (orbPos[i][2] * 32)));
+        }
+        msxOrbTiles(MSX_ORB_UNLIT, (Uint8 *)(LWRAM_MENU_TILES + (ORB_UNLIT_TILE * 32)));
+    }
 
     drawBox(0x00, 0x02, 0x08, 0x08, MM_PAL_BORDER);
     drawOrbs();
@@ -431,6 +442,9 @@ void doMainMenu() {
         } else if(pressed & PAD_RB) {
             sfxMenuSel();
             state = TO_BUGFIX_MENU;
+        } else if((pressed & PAD_LB) && (msxAvailable || musicMsxAvailable())) {
+            sfxMenuSel();
+            state = TO_GFX_MENU;
         } else {
             moveCursorUpDown();
         }
@@ -470,9 +484,7 @@ static void drawCharMenuString(Uint8 x, Uint8 y, Uint8 id, Uint8 member, Uint16 
 
 //NES EnterStatusMenu.
 void setupStatusScreen() {
-    for(Uint8 i = 0; i < 4; i++) {
-        menu_pal_0[i] = nes_pal[boarderPalette_blue[i]];
-    }
+    setBoxPalette(menu_pal_0, boarderPalette_blue, MSX_BOX_MENU);
     for(Uint8 i = 0; i < 6; i++) {
         drawBox(statusBoxes[i][0], statusBoxes[i][1], statusBoxes[i][2], statusBoxes[i][3], MM_PAL_BORDER);
         drawCharMenuString(statusBoxes[i][0] + 1, statusBoxes[i][1] + 2, STATUS_TEXT_START + i, mmTarget, CHAR_MENU_STRING_LEN);
@@ -566,9 +578,7 @@ static void enterMagicMenu() {
 }
 
 void setupMagicScreen() {
-    for(Uint8 i = 0; i < 4; i++) {
-        menu_pal_0[i] = nes_pal[boarderPalette_blue[i]];
-    }
+    setBoxPalette(menu_pal_0, boarderPalette_blue, MSX_BOX_MENU);
     enterMagicMenu();
 }
 
@@ -1044,10 +1054,15 @@ void setupEquipScreen() {
     const Uint8 *menuPal = eqMenuPal;
 #endif
 
+    setBoxPalette(menu_pal_0, boarderPalette_blue, MSX_BOX_MENU);
     for(Uint8 i = 0; i < 4; i++) {
-        menu_pal_0[i] = nes_pal[boarderPalette_blue[i]];
         menu_pal_1[i] = nes_pal[menuPal[4 + i]];
         menu_pal_2[i] = nes_pal[menuPal[8 + i]];
+    }
+    if(MSX_ON) {
+        //Keep the red and beige text, on the MSX box background.
+        menu_pal_1[0] = menu_pal_2[0] = menu_pal_0[0];
+        menu_pal_1[2] = menu_pal_2[2] = menu_pal_0[2];
     }
     sortEquipmentList();
 
@@ -1311,9 +1326,7 @@ static void enterItemMenu() {
 }
 
 void setupItemScreen() {
-    for(Uint8 i = 0; i < 4; i++) {
-        menu_pal_0[i] = nes_pal[boarderPalette_blue[i]];
-    }
+    setBoxPalette(menu_pal_0, boarderPalette_blue, MSX_BOX_MENU);
     enterItemMenu();
 }
 

@@ -12,6 +12,7 @@
 #include "dialog.h"
 #include "wipe.h"
 #include "nbgscroll.h"
+#include "msxgfx.h"
 
 static Uint16 smCycleTb[] = {
     0x4fee, 0xeeee,
@@ -46,10 +47,15 @@ void smScreenInit(Uint8 reenter, void (*wipeDone)(void)) {
     //SBL writes the rotation parameter table every vblank. The overworld left it at B0, where the NBG2 plane is.
     SCL_InitRotateTable(SCL_VDP2_VRAM_B1, 1, SCL_RBG0, SCL_NON);
 
-    //PPU $00-$7F is the tileset, $80-$FF the menu CHR.
-    convertNesTilesToSatTiles((Uint8 *)(SM_TILESET_CHR + cur_tileset * 0x800), (Uint8 *)LWRAM_BUFFER, 0x800);
-    memcpy((Uint8 *)LWRAM_BUFFER + 0x1000, (Uint8 *)LWRAM_MENU_TILES + 0x1000, 0x1000);
-    buildMapTiles((Uint8 *)LWRAM_BUFFER, (Uint8 *)SM_NBG0_CHAR, (Uint8 *)(LUT_SM_TILESET_TSA + cur_tileset * 0x200));
+    //PPU $00-$7F is the tileset, $80-$FF the menu CHR. The map tiles only use the tileset.
+    if(MSX_ON) {
+        buildMapTiles((Uint8 *)msxData(MSX_ID_MAP_TILES + 1 + cur_tileset), (Uint8 *)SM_NBG0_CHAR,
+                      (Uint8 *)(LUT_SM_TILESET_TSA + cur_tileset * 0x200));
+    } else {
+        convertNesTilesToSatTiles((Uint8 *)(SM_TILESET_CHR + cur_tileset * 0x800), (Uint8 *)LWRAM_BUFFER, 0x800);
+        memcpy((Uint8 *)LWRAM_BUFFER + 0x1000, (Uint8 *)LWRAM_MENU_TILES + 0x1000, 0x1000);
+        buildMapTiles((Uint8 *)LWRAM_BUFFER, (Uint8 *)SM_NBG0_CHAR, (Uint8 *)(LUT_SM_TILESET_TSA + cur_tileset * 0x200));
+    }
     smFullRedraw();
 
     memcpy((Uint8 *)SM_NBG2_CHAR, (Uint8 *)LWRAM_MENU_TILES, 0x2000);

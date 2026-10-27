@@ -110,12 +110,23 @@ extern Uint8 boarderPalette_black[4];
 extern Uint8 boarderPalette_blue[4];
 extern Uint8 boarderPalette_red[4];
 
-//NBG1 palettes 0-4, set by each screen's setup.
+//NBG1 palettes 0-6, set by each screen's setup. 5 and 6 are the MSX battle's extra enemy palettes.
 extern Uint32 menu_pal_0[];
 extern Uint32 menu_pal_1[];
 extern Uint32 menu_pal_2[];
 extern Uint32 menu_pal_3[];
 extern Uint32 menu_pal_4[];
+extern Uint32 menu_pal_5[16];
+extern Uint32 menu_pal_6[16];
+
+/**
+ * @brief Sets a box and text palette's 4 colors: the NES ones, or the screen's MSX box colors.
+ *
+ * @param dst Palette to set.
+ * @param nesPal The 4 NES colors.
+ * @param msxStyle MSX_BOX_ style for MSX mode.
+ */
+void setBoxPalette(Uint32 *dst, const Uint8 *nesPal, Uint8 msxStyle);
 
 /**
  * @brief Sets up the NBG1 menu layer with the menu tiles, palettes and menuPlane.

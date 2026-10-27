@@ -2,11 +2,14 @@
  *
  *                      FF1 Music And Sound Effects
  *
- * The NES sound driver, run once per audio frame by nesaudio.
+ * The NES sound driver, run once per audio frame by audio.
  * Start a song by writing its track number to music_track.
  *
  * Game code writes APU registers through musicApuWrite, which queues
  * them for the next audio frame.
+ *
+ * With the MSX driver, tracks play the MSX game's songs and the sfx
+ * functions its effects. APU writes do nothing.
  *
 *******************************************************************/
 #ifndef MUSIC_H
@@ -57,8 +60,20 @@ volatile Uint8 battleSfxHold;
 #define BTL_SFX_ENEMY_ATTACK (1)
 #define BTL_SFX_PLAYER_ATTACK (2)
 
+//MSX effects with no NES sfx function, for musicMsxSfx. The airship's propeller loops on its own.
+#define MSX_SFX_BATTLE_START (7)
+#define MSX_SFX_WIPE_CLOSE (11)
+#define MSX_SFX_WIPE_OPEN (12)
+#define MSX_SFX_AIRSHIP (13)
+#define MSX_SFX_ALTAR (15)
+#define MSX_SFX_TAKEOFF (16)
+#define MSX_SFX_LANDING (17)
+
+//The sound option: TRUE for the MSX driver. Only TRUE when musicMsxAvailable.
+extern Uint8 sndMsx;
+
 /**
- * @brief Resets the sound driver. nesaudio_init's init callback.
+ * @brief Resets the sound driver. audio_init's init callback.
  */
 void musicInit(void);
 
@@ -97,9 +112,36 @@ void musicPlay(void);
 
 /**
  * @brief Runs the queued APU writes and sound effects, then musicPlay
- * when the NES would call it. nesaudio_init's frame callback.
+ * when the NES would call it. audio_init's frame callback.
  */
 void musicFrame(void);
+
+/**
+ * @brief Gives whether the MSX driver (MSXSND.BIN) is on the CD.
+ */
+Uint8 musicMsxAvailable(void);
+
+/**
+ * @brief Switches to the MSX or NES driver and sets sndMsx. Call from the main loop.
+ *
+ * Silent while the driver loads from the CD, then restarts the song
+ * that was playing. Falls back to NES if the MSX driver won't load.
+ *
+ * @param msx TRUE for the MSX driver.
+ */
+void musicSetMsx(Uint8 msx);
+
+/**
+ * @brief Plays an MSX effect (MSX_SFX_) with the MSX driver. Does nothing with the NES driver.
+ *
+ * @param id MSX effect.
+ */
+void musicMsxSfx(Uint8 id);
+
+/**
+ * @brief Stops the MSX song on the next audio frame, before that frame's effect. Does nothing with the NES driver.
+ */
+void musicMsxStopSong(void);
 
 /**
  * @brief Plays the menu select sound.

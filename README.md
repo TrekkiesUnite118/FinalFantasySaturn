@@ -53,6 +53,20 @@ Saving has also been revamped. Inns, Cottages, Tents, etc. still heal the party 
  * Backup RAM Cartridge
  * Floppy Disk Drive.
 
+## MSX Graphics and Sound Support
+
+Support for graphics and audio from the MSX2 port are now supported. You will need to provide the data for these on your own. In the tools directory is a Java application called msxconv.jar that will generate the necessary files for you. To use it you will first need to download this tool:
+
+https://github.com/romh-acking/final-fantasy-msx2-say-dos-tool
+
+Use this tool on an image of your MSX2 Final Fantasy Disk to extract the files and sector data. Then use the msxconf.jar file by pointing it to the extracted data as so:
+
+java -jar mxsconf.jar <PATH_TO_EXTRACTED_MSX_FILES> <PATH_TO_MSX_SECTOR_DATA> MSXGFX.BIN MSXSND.BIN
+
+Copy the generated files to the cd directory and build the image.
+
+To enable MSX Graphics and Sound, press the L shoulder button in the start menu to bring up the new Options menu. You can then toggle between MSX and NES audio and graphics. Your choices will be saved to your save file.
+
 ## Future Goals:
 
 Possible ideas for future features are as follows:

@@ -11,9 +11,10 @@
 #include "battle.h"
 #include "save.h"
 #include "music.h"
-#include "nesaudio.h"
+#include "audio.h"
 #include "sound.h"
 #include "bugfix.h"
+#include "msxgfx.h"
 
 #define SV_SLOTS (3)
 #define SV_DEVICES (4) //Units as listed on screen, the floppy once per side.
@@ -87,11 +88,19 @@ typedef struct {
     Uint8 bridgeScene;
     PLAYER_CHARACTER party[4];
     Uint32 checksum;
-    //After the checksum, so older saves without it are a prefix and load with every fix off.
+    //After the checksum, so older saves without them are a prefix and load with them off.
     Uint8 bugFixes[BUGFIX_BYTES];
+    Uint8 gfxMsx;
+    Uint8 sndMsx;
 } SAVE_DATA;
 
+//Sizes of saves from before the bug fixes, the graphics option and the sound option.
 #define SV_OLD_SIZE (offsetof(SAVE_DATA, bugFixes))
+#define SV_BUGFIX_SIZE (offsetof(SAVE_DATA, gfxMsx))
+#define SV_GFX_SIZE (offsetof(SAVE_DATA, sndMsx))
+
+//The loaded save's sound option.
+static Uint8 svSndMsx;
 
 enum {
     SLOT_EMPTY,
@@ -168,6 +177,8 @@ static Uint32 svChecksum(SAVE_DATA *d) {
     for(Uint32 i = 0; i < BUGFIX_BYTES; i++) {
         sum += d->bugFixes[i];
     }
+    sum += d->gfxMsx;
+    sum += d->sndMsx;
     return sum;
 }
 
@@ -201,6 +212,8 @@ static void svCapture(SAVE_DATA *d) {
     d->bridgeScene = bridgeScene;
     memcpy(d->party, party, sizeof(party));
     memcpy(d->bugFixes, bugFixes, sizeof(bugFixes));
+    d->gfxMsx = gfxMsx;
+    d->sndMsx = sndMsx;
     d->checksum = svChecksum(d);
 }
 
@@ -224,6 +237,9 @@ static void svApply(SAVE_DATA *d) {
     bridgeScene = d->bridgeScene;
     memcpy(party, d->party, sizeof(party));
     memcpy(bugFixes, d->bugFixes, sizeof(bugFixes));
+    gfxMsx = d->gfxMsx && msxAvailable;
+    //Switched by svService once the slave SH-2 gives back the audio frames.
+    svSndMsx = d->sndMsx && musicMsxAvailable();
     setOWPosition(d->owX, d->owY);
     setOWVehicle(d->vehicle);
 }
@@ -410,7 +426,8 @@ static void svScan() {
         }
         svSlotState[i] = SLOT_BROKEN;
         memset(&svSlotData[i], 0, sizeof(SAVE_DATA));
-        if((size == sizeof(SAVE_DATA) || size == SV_OLD_SIZE) && bkRead(unit, (char *)name, &svSlotData[i])
+        if((size == sizeof(SAVE_DATA) || size == SV_GFX_SIZE || size == SV_BUGFIX_SIZE || size == SV_OLD_SIZE)
+           && bkRead(unit, (char *)name, &svSlotData[i])
            && svValid(&svSlotData[i])) {
             svSlotState[i] = SLOT_DATA;
         }
@@ -536,9 +553,7 @@ void setupBootMessage() {
     Uint8 count = 0;
     Uint8 msg = svBootMsgs[svBootMsgIndex];
 
-    for(Uint8 i = 0; i < 4; i++) {
-        menu_pal_0[i] = nes_pal[boarderPalette_blue[i]];
-    }
+    setBoxPalette(menu_pal_0, boarderPalette_blue, MSX_BOX_MENU);
     clearMenuPlane();
     drawBox(0, SV_BOOT_BOX_Y, SV_SLOT_W, SV_BOOT_BOX_H, SV_PAL);
 #ifdef FF1_JP
@@ -624,9 +639,7 @@ void saveOpen(Uint8 mode) {
 }
 
 void setupSaveScreen() {
-    for(Uint8 i = 0; i < 4; i++) {
-        menu_pal_0[i] = nes_pal[boarderPalette_blue[i]];
-    }
+    setBoxPalette(menu_pal_0, boarderPalette_blue, MSX_BOX_MENU);
     drawBox(SV_LABEL_X, SV_TOP_Y, SV_LABEL_W, SV_TOP_H, SV_PAL);
     svDrawText(SV_LABEL_X + 1, SV_TEXT_Y, (svMode == SV_MODE_SAVE) ? SV_TXT("SAVE", "セーブ") : SV_TXT("LOAD", "ロード"));
     drawBox(SV_MSG_X, SV_TOP_Y, SV_MSG_W, SV_TOP_H, SV_PAL);
@@ -747,7 +760,7 @@ static void svService() {
 
     saveBusy = TRUE;
     bkResetDisable();
-    nesaudio_slave_begin();
+    audio_slave_begin();
     switch(request) {
         case SV_REQ_WRITE:
             ok = svWrite();
@@ -759,14 +772,20 @@ static void svService() {
     if(request != SV_REQ_LOAD || !ok) {
         svScan();
     }
-    nesaudio_slave_end();
+    audio_slave_end();
     bkResetEnable();
     saveBusy = FALSE;
 
     svRequest = SV_REQ_NONE;
     if(request == SV_REQ_LOAD && ok) {
+        if(svSndMsx != sndMsx) {
+            musicSetMsx(svSndMsx);
+        }
         //Overworld loading takes many frames, and the title music would hold its last notes.
         musicApuWrite(0x4015, 0);
+        if(sndMsx) {
+            music_track = MUSIC_ENDED;
+        }
         menuReturnSM = FALSE;
         owWipeIn = TRUE;
         state = TO_OW_STATE;
@@ -809,8 +828,7 @@ static void svDrawSprite(SPRITE_INFO *sprite, PLAYER_CHARACTER *c, Uint16 x, Uin
     sprite->xPos = FIXED(x);
     sprite->yPos = FIXED(y);
     if(c->ailment == AIL_STONE) {
-        sprite->char_num += 4;
-        sprite_draw_pal(sprite, STONE_PALETTE_CRAM);
+        drawStoneSprite(sprite, c->char_class);
         return;
     }
     if(c->ailment == AIL_POISON) {

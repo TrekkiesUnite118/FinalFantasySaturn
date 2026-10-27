@@ -94,7 +94,9 @@ enum	__gamestate__ {
     TO_BOOT_MSG,
     BOOT_MSG,
     TO_BUGFIX_MENU,
-    BUGFIX_MENU
+    BUGFIX_MENU,
+    TO_GFX_MENU,
+    GFX_MENU
 };
 
 //A party member's stats outside battle.

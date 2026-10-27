@@ -19,5 +19,8 @@
 #define LWRAM_WEAPON_SPRITES    (0x26C040)
 #define LWRAM_MENU_TILES    (0x26D040)
 #define LWRAM_BUFFER    (0x26F040)
+//MSXGFX.BIN, the optional MSX2 graphics from tools/msxconv.
+#define LWRAM_MSX_GFX    (0x275040)
+#define LWRAM_MSX_GFX_END    (0x300000)
 
 #endif

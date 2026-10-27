@@ -21,6 +21,10 @@
 #include "mainmenu.h"
 #include "video.h"
 #include "nbgscroll.h"
+#include "msxgfx.h"
+
+//MAIN.COM only hides room interiors from map 8 on (its map number 9), past the towns.
+#define SM_MSX_FIRST_ROOM_MAP (8)
 
 //Screen position of the player tile, matching the overworld.
 #define SM_VIEW_X (152)
@@ -42,6 +46,8 @@ static Uint8 smPalCycling; //smUploadPalettes shows smPalCycColors.
 static Uint8 smPalCycReverse;
 static Uint8 smPalCycFrame;
 static Uint8 smPalCycNext;
+static Uint8 smFadeStep; //The MSX fade that stands in for the palette cycle.
+static Uint8 smBattleFade; //The MSX fade that stands in for the battle transition emphasis.
 
 #define MAPTILE_CLOSEDDOOR (0x36)
 #define MAPTILE_OPENDOOR (0x37)
@@ -151,26 +157,53 @@ static Uint8 *smBgNesPal() {
     return inroom ? mapPal + 0x20 : mapPal;
 }
 
+static Uint8 smMsxFadeStep() {
+    return smPalCycling ? smFadeStep : smBattleFade;
+}
+
+static Uint32 smMsxSpriteColor(Uint32 color) {
+    return msxFadeColor(msxShadeColor(color, smEmphasis, smGray), smMsxFadeStep(), MSX_FADE_STEPS);
+}
+
 void smUploadPalettes() {
     Uint8 *mapPal = (Uint8 *)(LUT_SM_PALETTES + cur_map * 0x30);
-    Uint8 *bgPal = smPalCycling ? smPalCycColors : smBgNesPal();
+    Uint8 *bgPal = smPalCycling && !MSX_ON ? smPalCycColors : smBgNesPal();
     Uint32 palette[16];
     Uint8 sprPal[4];
     Uint8 classColors[2];
 
-    for(Uint8 p = 0; p < 4; p++) {
-        memset(palette, 0, sizeof(palette));
-        for(Uint8 i = 0; i < 4; i++) {
-            palette[i] = emphasizeColor(smColor(bgPal[p * 4 + i]), smEmphasis);
+    //The MSX map uses one 16 color palette. Outside rooms, castles and dungeons hide room interiors in colors 12-15.
+    if(MSX_ON) {
+        msxMapPalette(cur_tileset, cur_map, palette);
+        if(!inroom && cur_map >= SM_MSX_FIRST_ROOM_MAP) {
+            msxHideRooms(palette);
         }
-        vidSetPalette(VID_NBG0, p * 16, 16, palette);
+        for(Uint8 i = 0; i < 16; i++) {
+            palette[i] = msxFadeColor(msxShadeColor(palette[i], smEmphasis, smGray), smMsxFadeStep(), MSX_FADE_STEPS);
+        }
+        vidSetPalette(VID_NBG0, 0, 16, palette);
+    } else {
+        for(Uint8 p = 0; p < 4; p++) {
+            memset(palette, 0, sizeof(palette));
+            for(Uint8 i = 0; i < 4; i++) {
+                palette[i] = emphasizeColor(smColor(bgPal[p * 4 + i]), smEmphasis);
+            }
+            vidSetPalette(VID_NBG0, p * 16, 16, palette);
+        }
     }
     setBattleBackColor(smColor(bgPal[0]));
 
     //The dialogue box uses BG palette 3.
     memset(palette, 0, sizeof(palette));
-    for(Uint8 i = 0; i < 4; i++) {
-        palette[i] = nes_pal[smColor(bgPal[12 + i])];
+    if(MSX_ON) {
+        msxBoxPalette(MSX_BOX_MAP, palette);
+        for(Uint8 i = 0; i < 4; i++) {
+            palette[i] = msxFadeColor(msxShadeColor(palette[i], 0, smGray), smMsxFadeStep(), MSX_FADE_STEPS);
+        }
+    } else {
+        for(Uint8 i = 0; i < 4; i++) {
+            palette[i] = nes_pal[smColor(bgPal[12 + i])];
+        }
     }
     vidSetPalette(VID_NBG2, DLG_BOX_PAL * 16, 16, palette);
 
@@ -183,11 +216,28 @@ void smUploadPalettes() {
     }
     classColors[0] = smColor(classPal[0]);
     classColors[1] = smColor(classPal[1]);
-    initMapManPalette(palA, palB, sprPal, classColors);
+    if(MSX_ON) {
+        msxMapManPalette(determine_curr_char_class(), palA, palB);
+        for(Uint8 i = 1; i < 4; i++) {
+            palA[i] = smMsxSpriteColor(palA[i]);
+            palB[i] = smMsxSpriteColor(palB[i]);
+        }
+    } else {
+        initMapManPalette(palA, palB, sprPal, classColors);
+    }
     vidSetPalette(VID_SPR, mapSpriteCramStart, 16, palA);
     vidSetPalette(VID_SPR, mapSpriteCramStart + 16, 16, palB);
 
-    //Map objects use sprite palettes 2 and 3.
+    //Map objects use sprite palettes 2 and 3. The MSX objects share one palette.
+    if(MSX_ON) {
+        msxSpritePalette(palette);
+        for(Uint8 i = 1; i < 16; i++) {
+            palette[i] = smMsxSpriteColor(palette[i]);
+        }
+        vidSetPalette(VID_SPR, SM_OBJ_TOP_CRAM, 16, palette);
+        vidSetPalette(VID_SPR, SM_OBJ_BOTTOM_CRAM, 16, palette);
+        return;
+    }
     for(Uint8 p = 0; p < 2; p++) {
         memset(palette, 0, sizeof(palette));
         for(Uint8 i = 0; i < 4; i++) {
@@ -203,7 +253,7 @@ static void smDrawCell(Uint8 x, Uint8 y, Uint8 tile) {
     Uint16 *pn = (Uint16 *)SM_NBG0_PN;
     Uint16 page = ((y >> 5) << 1) | (x >> 5);
 
-    pn[page * 1024 + (y & 31) * 32 + (x & 31)] = ((attr[smMap[y][x]] & 3) << 12) | tile;
+    pn[page * 1024 + (y & 31) * 32 + (x & 31)] = (MSX_ON ? 0 : (attr[smMap[y][x]] & 3) << 12) | tile;
 }
 
 //Writes the 64x64 map as 2x2 pages of 32x32 cells.
@@ -351,6 +401,7 @@ void sm_init() {
     smTileprop[1] = 0;
     smGray = FALSE;
     smEmphasis = 0;
+    smBattleFade = 0;
     altareffect = 0;
     smAltarLines = 0;
     smAltarShake = 0;
@@ -663,6 +714,11 @@ void smSetEmphasis(Uint8 emphasis) {
     smUploadPalettes();
 }
 
+void smSetMsxFade(Uint8 step) {
+    smBattleFade = step;
+    smUploadPalettes();
+}
+
 //NES CyclePalettes for standard maps.
 static void smStartPalCycle(Uint8 reverse, Uint8 nextState) {
     Uint8 *target = smBgNesPal();
@@ -673,6 +729,7 @@ static void smStartPalCycle(Uint8 reverse, Uint8 nextState) {
             smPalCycColors[i] = (smPalCycColors[i] & 0x30) | 0x0C;
         }
     }
+    smFadeStep = reverse ? MSX_FADE_STEPS : 0;
     smPalCycling = TRUE;
     smPalCycReverse = reverse;
     smPalCycNext = nextState;
@@ -685,6 +742,14 @@ static Uint8 smPalCycStep() {
     Uint8 *target = smBgNesPal();
     Uint8 changed = 0;
 
+    //The MSX fades to black and back instead.
+    if(MSX_ON) {
+        if(smPalCycReverse ? smFadeStep == 0 : smFadeStep == MSX_FADE_STEPS) {
+            return 0;
+        }
+        smFadeStep += smPalCycReverse ? -1 : 1;
+        return 1;
+    }
     for(Uint8 i = 0; i < 16; i++) {
         Uint8 color = smPalCycColors[i];
         if(smPalCycReverse) {
@@ -959,6 +1024,8 @@ static void smStartAltar() {
     musicApuWrite(0x400F, 0x00);
     musicApuWrite(0x4006, 0x00);
     musicApuWrite(0x4007, 0x05);
+    //The MSX game keeps its music going under the effect.
+    musicMsxSfx(MSX_SFX_ALTAR);
 }
 
 //NES DoAltarEffect @MainLoop and AltarFrame. The beam's height sets the sq2 and noise volume. Returns TRUE once done.

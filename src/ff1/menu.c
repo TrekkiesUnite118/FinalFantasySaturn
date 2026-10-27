@@ -10,6 +10,7 @@
 #include "memmap.h"
 #include "magic.h"
 #include "dialog.h"
+#include "msxgfx.h"
 
 Uint16 menuPlane[64][64] = {{0x00FF}};
 
@@ -188,6 +189,8 @@ Uint32 menu_pal_4[] = {
 	0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
 	0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
 };
+Uint32 menu_pal_5[16];
+Uint32 menu_pal_6[16];
 
 Uint8 defaultName[7]= {0};
 
@@ -297,6 +300,16 @@ static Uint16 *battleMsg_lut = (Uint16 *)BATTLE_MSG_PTR_TABLE;
 Uint16 btl_msg_offset = 0;
 
 #define FRAME_BATTLE_START (96)
+
+void setBoxPalette(Uint32 *dst, const Uint8 *nesPal, Uint8 msxStyle) {
+    if(MSX_ON) {
+        msxBoxPalette(msxStyle, dst);
+        return;
+    }
+    for(Uint8 i = 0; i < 4; i++) {
+        dst[i] = nes_pal[nesPal[i]];
+    }
+}
 
 void drawBox(Uint8 xPos, Uint8 yPos, Uint8 width, Uint8 height, Uint8 palNum) {
 
@@ -487,16 +500,9 @@ void drawPreludeTextLine(Uint8 xPos, Uint8 yPos, Uint8 *stringPtr, Uint8 palNum,
 }
     
 void setupPartyCreateScreen() {
-    //Set up Menu Palettes
-    menu_pal_0[0] = nes_pal[boarderPalette_blue[0]];
-    menu_pal_0[1] = nes_pal[boarderPalette_blue[1]];
-    menu_pal_0[2] = nes_pal[boarderPalette_blue[2]];
-    menu_pal_0[3] = nes_pal[boarderPalette_blue[3]];
-
-    menu_pal_1[0] = nes_pal[boarderPalette_red[0]];
-    menu_pal_1[1] = nes_pal[boarderPalette_red[1]];
-    menu_pal_1[2] = nes_pal[boarderPalette_red[2]];
-    menu_pal_1[3] = nes_pal[boarderPalette_red[3]];
+    //The MSX red boxes match the others.
+    setBoxPalette(menu_pal_0, boarderPalette_blue, MSX_BOX_MENU);
+    setBoxPalette(menu_pal_1, boarderPalette_red, MSX_BOX_MENU);
 
     for(Uint8 i = 0; i < 4; i++) {
         Uint8 *className_ptr = (Uint8 *)CLASS_NAME_OFFSET +partyInitBuff[i].class * 8;
@@ -522,9 +528,7 @@ void setupPartyCreateScreen() {
 //NES EnterLineupMenu. ClearNT sets every attribute to the blue border palette.
 //The NES box is at $0A, $0E wide. It's 2 tiles wider here for 6 character names, keeping the same center.
 void setupLineupScreen() {
-    for(Uint8 i = 0; i < 4; i++) {
-        menu_pal_0[i] = nes_pal[boarderPalette_blue[i]];
-    }
+    setBoxPalette(menu_pal_0, boarderPalette_blue, MSX_BOX_MENU);
     drawBox(0x09, 0x05, 0x10, 0x13, 0);
 }
 
@@ -587,16 +591,8 @@ Uint8 getPartyCreateCursorPosY(Uint8 cur_char_create){
 }
 
 void setupTitleScreen() {
-    //Set up Menu Palettes
-    menu_pal_0[0] = nes_pal[boarderPalette_blue[0]];
-    menu_pal_0[1] = nes_pal[boarderPalette_blue[1]];
-    menu_pal_0[2] = nes_pal[boarderPalette_blue[2]];
-    menu_pal_0[3] = nes_pal[boarderPalette_blue[3]];
-
-    menu_pal_1[0] = nes_pal[boarderPalette_red[0]];
-    menu_pal_1[1] = nes_pal[boarderPalette_red[1]];
-    menu_pal_1[2] = nes_pal[boarderPalette_red[2]];
-    menu_pal_1[3] = nes_pal[boarderPalette_red[3]];
+    setBoxPalette(menu_pal_0, boarderPalette_blue, MSX_BOX_MENU);
+    setBoxPalette(menu_pal_1, boarderPalette_red, MSX_BOX_MENU);
 
     //Continue Box
     drawBox(11, 10, 10, 4, 0);
@@ -625,16 +621,8 @@ void setupTitleScreen() {
 
 
 void setupNameEntryScreen() {
-    //Set up Menu Palettes
-    menu_pal_0[0] = nes_pal[boarderPalette_blue[0]];
-    menu_pal_0[1] = nes_pal[boarderPalette_blue[1]];
-    menu_pal_0[2] = nes_pal[boarderPalette_blue[2]];
-    menu_pal_0[3] = nes_pal[boarderPalette_blue[3]];
-
-    menu_pal_1[0] = nes_pal[boarderPalette_red[0]];
-    menu_pal_1[1] = nes_pal[boarderPalette_red[1]];
-    menu_pal_1[2] = nes_pal[boarderPalette_red[2]];
-    menu_pal_1[3] = nes_pal[boarderPalette_red[3]];
+    setBoxPalette(menu_pal_0, boarderPalette_blue, MSX_BOX_MENU);
+    setBoxPalette(menu_pal_1, boarderPalette_red, MSX_BOX_MENU);
 
     //Text Select Box
     drawBox(4, 8, 24, 20, 0);
@@ -750,16 +738,9 @@ void preludeAnimate() {
 
 void setupBattleScreen(Uint8 battleValue) {
     
-    //Set up Menu Palettes
-    menu_pal_0[0] = nes_pal[boarderPalette_black[0]];
-    menu_pal_0[1] = nes_pal[boarderPalette_black[1]];
-    menu_pal_0[2] = nes_pal[boarderPalette_black[2]];
-    menu_pal_0[3] = nes_pal[boarderPalette_black[3]];
-    
-    menu_pal_1[0] = nes_pal[boarderPalette_blue[0]];
-    menu_pal_1[1] = nes_pal[boarderPalette_blue[1]];
-    menu_pal_1[2] = nes_pal[boarderPalette_blue[2]];
-    menu_pal_1[3] = nes_pal[boarderPalette_blue[3]];
+    //The MSX battle boxes are all black.
+    setBoxPalette(menu_pal_0, boarderPalette_black, MSX_BOX_BATTLE);
+    setBoxPalette(menu_pal_1, boarderPalette_blue, MSX_BOX_BATTLE);
 
     Uint8 *pal_ptr = (Uint8 *)BATTLE_BACKDROP_PALETTE_OFFSET + (4 * battleValue);
 
@@ -767,6 +748,14 @@ void setupBattleScreen(Uint8 battleValue) {
     menu_pal_2[1] = nes_pal[pal_ptr[1]];
     menu_pal_2[2] = nes_pal[pal_ptr[2]];
     menu_pal_2[3] = nes_pal[pal_ptr[3]];
+    if(MSX_ON) {
+        //The MSX backdrops use the battle sprite palette. Their 3 rows replace NES tiles 1-12.
+        const Uint32 *pal = msxPalette(MSX_ID_BATTLE_PAL);
+        for(Uint8 i = 0; i < 16; i++) {
+            menu_pal_2[i] = pal[i];
+        }
+        memcpy((Uint8 *)LWRAM_MENU_TILES + 32, msxData(MSX_ID_BACKDROPS + battleValue), MSX_BACKDROP_ROWS * 4 * 32);
+    }
 
     drawMainBattleBoxes();
 
@@ -881,22 +870,24 @@ void mainBattleBoxBottoms() {
 void drawMainBattleBoxes() {
     Uint8 *battleBox_xy = (Uint8 *)BATTLE_MAIN_BOX_XY;
     Uint8 *battleBox_width = (Uint8 *)BATTLE_MAIN_BOX_WIDTH;
-    Uint8 *battleBox_height = (Uint8 *)BATTLE_MAIN_BOX_HEIGHT;
+    Uint8 shift = battleBoxTopShift();
+    Uint8 battleBox_y = *battleBox_xy + shift;
+    Uint8 battleBox_height = *(Uint8 *)BATTLE_MAIN_BOX_HEIGHT - shift;
 
     //Enemy Box
-    drawBox(*battleBox_xy - 1, *battleBox_xy, *battleBox_width, *battleBox_height, BATTLE_MENU_PALETTE);
+    drawBox(*battleBox_xy - 1, battleBox_y, *battleBox_width, battleBox_height, BATTLE_MENU_PALETTE);
 
     Uint8 *partyBox_x = (Uint8 *)BATTLE_CHAR_BOX_X;
-    Uint8 *partyBox_y = (Uint8 *)BATTLE_CHAR_BOX_Y;
+    Uint8 partyBox_y = *(Uint8 *)BATTLE_CHAR_BOX_Y + shift;
     Uint8 *partyBox_width = (Uint8 *)BATTLE_CHAR_BOX_WIDTH;
-    Uint8 *partyBox_height = (Uint8 *)BATTLE_CHAR_BOX_HEIGHT;
+    Uint8 partyBox_height = *(Uint8 *)BATTLE_CHAR_BOX_HEIGHT - shift;
 
     //Party Box
-    drawBox(*partyBox_x - 1, *partyBox_y, *partyBox_width, *partyBox_height, BATTLE_MENU_PALETTE);
+    drawBox(*partyBox_x - 1, partyBox_y, *partyBox_width, partyBox_height, BATTLE_MENU_PALETTE);
 
     //Transparent interiors so the magic flash shows. The NES clears tile $FF instead, which also flashes the text boxes.
-    clearArea(*battleBox_xy, *battleBox_xy + 1, *battleBox_width - 2, *battleBox_height - 2);
-    clearArea(*partyBox_x, *partyBox_y + 1, *partyBox_width - 2, *partyBox_height - 2);
+    clearArea(*battleBox_xy, battleBox_y + 1, *battleBox_width - 2, battleBox_height - 2);
+    clearArea(*partyBox_x, partyBox_y + 1, *partyBox_width - 2, partyBox_height - 2);
 
     for(Uint8 i = 0; i < 4; i++) {
         drawBattleBackdropRow(i);
@@ -912,13 +903,16 @@ void clearArea(Uint8 xPos, Uint8 yPos, Uint8 width, Uint8 height) {
 }
 
 void drawBattleBackdropRow(Uint8 row) {
-    
+    if(MSX_ON && row >= MSX_BACKDROP_ROWS) {
+        return;
+    }
+
     Uint8 *bg_width = (Uint8 *)BATTLE_MAIN_BACKGROUND_WIDTH_1;
 
     Uint8 *battleBox_xy = (Uint8 *)BATTLE_MAIN_BOX_XY;
   
     Uint8 xPos = *battleBox_xy + CENTER_ADJUSTMENT;
-    Uint8 yPos = *battleBox_xy + 1;
+    Uint8 yPos = *battleBox_xy + 1 + battleBoxTopShift();
     Uint16 tileVal = 0;
     for(Uint8 i = 0; i < *bg_width; i++) {
         tileVal = 2 << 12;
@@ -1227,9 +1221,9 @@ void clearMenuPlane() {
 }
 
 void static_init_tiles(Uint8 *tiles) {
-    static Uint32 *pals[5] = {menu_pal_0, menu_pal_1, menu_pal_2, menu_pal_3, menu_pal_4};
+    static Uint32 *pals[7] = {menu_pal_0, menu_pal_1, menu_pal_2, menu_pal_3, menu_pal_4, menu_pal_5, menu_pal_6};
 
-    static_setup(tiles, pals, 5, menuPlane);
+    static_setup(tiles, pals, 7, menuPlane);
 }
 
 void static_init() {

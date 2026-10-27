@@ -14,6 +14,7 @@
 #include "print.h"
 #include "rbgscroll.h"
 #include "sprite.h"
+#include "msxgfx.h"
 
 #define    MAP_OFFSET    (0x0800 *4)
 #define    MAP_NUM        16
@@ -86,6 +87,19 @@ static Uint16 owCycleTb[] = {
 //NES color indices of the current map's palettes, kept so emphasis can be applied to them.
 static Uint8 *bgNesPalette;
 static Uint8 bgTotalColors;
+//MSX fade step, standing in for the NES palette cycle.
+static Uint8 owFadeStep;
+
+//The MSX map uses one 16 color palette, MAINBG's.
+static void owMsxColors(Uint8 emphasis, Uint8 fadeStep) {
+    const Uint32 *src = msxPalette(MSX_ID_MAP_PALS);
+    Uint32 palette[16];
+
+    for(Uint8 i = 0; i < 16; i++) {
+        palette[i] = msxFadeColor(emphasizeRgb(src[i], emphasis), fadeStep, MSX_FADE_STEPS);
+    }
+    SCL_SetColRam(SCL_RBG0, 0, 16, palette);
+}
 
 
 void scroll_init(void) {
@@ -118,9 +132,12 @@ void scroll_init(void) {
         nes_val = bgNesPalette[i + 3];
         palette[palette_iter][3] = nes_pal[nes_val];
 
-        SCL_SetColRam(SCL_RBG0, palette_iter * 16 , 16, (void *)palette[palette_iter]);   
+        SCL_SetColRam(SCL_RBG0, palette_iter * 16 , 16, (void *)palette[palette_iter]);
         palette_iter++;
-    } 
+    }
+    if(MSX_ON) {
+        owMsxColors(0, 0);
+    }
 
     BackCol = nes_pal[0x0F]; //set the background color to black
     SCL_SetBack(SCL_VDP2_VRAM+0x80000-2,1,&BackCol);
@@ -152,8 +169,12 @@ void scroll_init(void) {
     //---rbg0: far bg---
     VramWorkP = (Uint8 *)SCL_VDP2_VRAM_A0;
 
-    convertNesTilesToSatTiles((Uint8 *)OVERWORLD_CHR, (Uint8 *)LWRAM_BUFFER, OVERWORLD_CHR_SIZE);
-    buildMapTiles((Uint8 *)LWRAM_BUFFER, VramWorkP, (Uint8 *)OVERWORLD_TSA);
+    if(MSX_ON) {
+        buildMapTiles((Uint8 *)msxData(MSX_ID_MAP_TILES), VramWorkP, (Uint8 *)OVERWORLD_TSA);
+    } else {
+        convertNesTilesToSatTiles((Uint8 *)OVERWORLD_CHR, (Uint8 *)LWRAM_BUFFER, OVERWORLD_CHR_SIZE);
+        buildMapTiles((Uint8 *)LWRAM_BUFFER, VramWorkP, (Uint8 *)OVERWORLD_TSA);
+    }
 
     int x = 0;
     int y = 0;
@@ -449,6 +470,10 @@ Uint8 scroll_project(Fixed32 x, Fixed32 y, Fixed32 *sx, Fixed32 *sy, Fixed32 *sc
 void scroll_set_emphasis(Uint8 emphasis) {
     Uint32 palette[16] = {0};
 
+    if(MSX_ON) {
+        owMsxColors(emphasis, 0);
+        return;
+    }
     for(Uint8 p = 0; p * 4 < bgTotalColors; p++) {
         for(Uint8 i = 0; i < 4; i++) {
             palette[i] = emphasizeColor(bgNesPalette[(p * 4) + i], emphasis);
@@ -457,12 +482,20 @@ void scroll_set_emphasis(Uint8 emphasis) {
     }
 }
 
+void scroll_set_msx_fade(Uint8 step) {
+    owMsxColors(0, step);
+}
+
 //NES CyclePalettes. Only the 16 BG colors cycle, like the NES.
 static Uint8 palCycColors[16];
 
 void scroll_pal_cycle_draw() {
     Uint32 palette[16] = {0};
 
+    if(MSX_ON) {
+        owMsxColors(0, owFadeStep);
+        return;
+    }
     for(Uint8 p = 0; p < 4; p++) {
         for(Uint8 i = 0; i < 4; i++) {
             palette[i] = nes_pal[palCycColors[(p * 4) + i]];
@@ -473,6 +506,7 @@ void scroll_pal_cycle_draw() {
 
 //Cycling in starts each non-black color at chroma $C of its brightness.
 void scroll_pal_cycle_init(Uint8 reverse) {
+    owFadeStep = reverse ? MSX_FADE_STEPS : 0;
     for(Uint8 i = 0; i < 16; i++) {
         palCycColors[i] = bgNesPalette[i];
         if(reverse && palCycColors[i] != 0x0F) {
@@ -488,6 +522,14 @@ void scroll_pal_cycle_init(Uint8 reverse) {
 Uint8 scroll_pal_cycle_step(Uint8 reverse) {
     Uint8 changed = 0;
 
+    //The MSX fades to black and back instead.
+    if(MSX_ON) {
+        if(reverse ? owFadeStep == 0 : owFadeStep == MSX_FADE_STEPS) {
+            return 0;
+        }
+        owFadeStep += reverse ? -1 : 1;
+        return 1;
+    }
     for(Uint8 i = 0; i < 16; i++) {
         Uint8 color = palCycColors[i];
         if(reverse) {

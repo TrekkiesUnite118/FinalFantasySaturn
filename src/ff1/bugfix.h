@@ -72,4 +72,15 @@ void doBugFixMenu(void);
  */
 void bugfix_draw(void);
 
+/**
+ * @brief Draws option screen text in the menu font, padded with spaces.
+ *
+ * @param x NES tile x.
+ * @param y NES tile y.
+ * @param str ASCII text (UTF-8 kana for the Japanese build).
+ * @param len Width in tiles, at most 34.
+ * @param pal Menu palette.
+ */
+void optionDrawText(Uint8 x, Uint8 y, const char *str, Uint8 len, Uint8 pal);
+
 #endif

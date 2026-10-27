@@ -12,6 +12,7 @@
 #include "story.h"
 #include "minigame.h"
 #include "romaddr.h"
+#include "msxgfx.h"
 
 #define MG_BOX_X (8)
 #define MG_BOX_Y (5)
@@ -30,7 +31,11 @@
 #define JOY_A (0x80)
 #define JOY_B (0x40)
 
+//MSX mode: the numbers are in the box border color.
+#define MG_MSX_NUMBER_COLOR (1)
+
 enum {
+    MG_STEP_FADE_IN,
     MG_STEP_LOOP,
     MG_STEP_SLIDE,
     MG_STEP_SOLVED
@@ -257,7 +262,7 @@ void setupMinigame() {
     }
     mgShuffle();
     music_track = MUSIC_BRIDGE;
-    mgSprPal[2] = nes_pal[0x15];
+    mgSprPal[2] = MSX_ON ? storyMsxBoxColor(MG_MSX_NUMBER_COLOR) : nes_pal[0x15];
     mgSprPal[3] = nes_pal[0x30];
     mgUploadPal();
 
@@ -270,12 +275,17 @@ void setupMinigame() {
     //joy_ignore isn't cleared, and A and B were held to start the minigame.
     mgJoyPrev = JOY_A | JOY_B;
     mgCursor = (mgPuzzle[0] == 0) ? 1 : 0;
-    mgStep = MG_STEP_LOOP;
+    mgStep = MSX_ON ? MG_STEP_FADE_IN : MG_STEP_LOOP;
 }
 
 //NES MiniGameLoop, MiniGame_AnimateSlide and the MiniGame_CheckVictory wait, one frame per call.
 void doMinigame() {
     switch(mgStep) {
+        case MG_STEP_FADE_IN:
+            if(storyFadeInFrame()) {
+                mgStep = MG_STEP_LOOP;
+            }
+            break;
         case MG_STEP_LOOP:
             mgIncFrame();
             mgDrawAllPieces();
@@ -326,7 +336,7 @@ void minigame_draw() {
             continue;
         }
         sprite_make(MG_CHAR_START + ((mgOam[s].piece - 1) * 2), FIXED(mgOam[s].x + (CENTER_ADJUSTMENT * 8)),
-            FIXED(mgOam[s].y + 1), (Sint32) CHARACTER_PRIORITY, &spr);
+            FIXED(mgOam[s].y + 1 - storyScrollY()), (Sint32) CHARACTER_PRIORITY, &spr);
         sprite_draw(&spr);
         spr.char_num++;
         spr.yPos += FIXED(8);

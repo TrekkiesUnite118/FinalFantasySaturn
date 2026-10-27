@@ -15,6 +15,7 @@
 #include "stdmap.h"
 #include "shop.h"
 #include "music.h"
+#include "msxgfx.h"
 
 //NES BG palettes 3, 1, 2 and 0.
 #define SHOP_PAL_BORDER (0)
@@ -726,11 +727,25 @@ void setupShopScreen() {
     loadShopInventory();
 
     convertNesTilesToSatTiles((Uint8 *)SHOP_CHR, (Uint8 *)LWRAM_BUFFER, 0x1000);
+    setBoxPalette(menu_pal_0, boarderPalette_blue, MSX_BOX_MENU);
     for(Uint8 i = 0; i < 4; i++) {
-        menu_pal_0[i] = nes_pal[boarderPalette_blue[i]];
         menu_pal_1[i] = nes_pal[((Uint8 *)LUT_SHOP_PALETTES)[i]];
         menu_pal_2[i] = nes_pal[((Uint8 *)LUT_SHOP_PALETTES)[4 + i]];
         menu_pal_3[i] = nes_pal[((Uint8 *)BATTLE_BACKDROP_PALETTE_OFFSET)[SHOP_BACKDROP_PAL + (shopType * 4) + i]];
+    }
+    if(MSX_ON) {
+        //The MSX title and gold boxes look like the other boxes.
+        msxBoxPalette(MSX_BOX_MENU, menu_pal_1);
+        msxBoxPalette(MSX_BOX_MENU, menu_pal_2);
+        //SHOPBG has 16 tiles per shop type, the first 2 unused.
+        const Uint32 *pal = msxPalette(MSX_ID_SHOP_PAL);
+        for(Uint8 i = 0; i < 16; i++) {
+            menu_pal_3[i] = pal[i];
+        }
+        for(Uint8 k = 1; k < SHOPKEEP_TILES; k++) {
+            memcpy((Uint8 *)LWRAM_BUFFER + (k + shopType * SHOPKEEP_TILES) * 32,
+                msxData(MSX_ID_SHOP_TILES) + (shopType * 16 + k + 2) * 32, 32);
+        }
     }
 
     //NES DrawImageRect: zero tiles are drawn without the additive.

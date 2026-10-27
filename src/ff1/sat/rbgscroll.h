@@ -93,6 +93,13 @@ void scroll_disable();
 void scroll_set_emphasis(Uint8 emphasis);
 
 /**
+ * @brief Reloads the MSX map palette faded toward black.
+ *
+ * @param step Fade step, 0 (none) to MSX_FADE_STEPS (black).
+ */
+void scroll_set_msx_fade(Uint8 step);
+
+/**
  * @brief Starts the NES palette cycle on the map's colors.
  *
  * @param reverse FALSE to cycle out to black, TRUE to cycle in to the map's colors.

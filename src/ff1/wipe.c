@@ -60,6 +60,9 @@ void wipeStart(Uint8 open, Uint32 layers, void (*done)(void)) {
     wipeSetWindow();
     wipeSoundStart();
     wipeSoundFrame();
+    //The MSX game stops its music for both wipes. The next map's song waits for the wipe to end.
+    musicMsxStopSong();
+    musicMsxSfx(open ? MSX_SFX_WIPE_OPEN : MSX_SFX_WIPE_CLOSE);
     state = WIPE;
 }
 

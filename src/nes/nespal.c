@@ -10,10 +10,16 @@ Uint32 nes_pal[64] = {
 //Approximates NES color emphasis by dimming the non-emphasized channels to ~0.816 (all three bits dim every channel).
 //Emphasis bits: 0 = red, 1 = green, 2 = blue. Colors $xE/$xF aren't affected.
 Uint32 emphasizeColor(Uint8 nesColor, Uint8 emphasis) {
-    Uint32 color = nes_pal[nesColor];
+    if((nesColor & 0x0F) >= 0x0E) {
+        return nes_pal[nesColor];
+    }
+    return emphasizeRgb(nes_pal[nesColor], emphasis);
+}
+
+Uint32 emphasizeRgb(Uint32 color, Uint8 emphasis) {
     Uint32 result = 0;
 
-    if(emphasis == 0 || (nesColor & 0x0F) >= 0x0E) {
+    if(emphasis == 0) {
         return color;
     }
 

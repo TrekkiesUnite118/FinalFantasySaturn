@@ -22,8 +22,10 @@ void storySelect(Uint8 ending);
 
 /**
  * @brief Loads the scene's graphics, picture and palettes and starts its music.
+ *
+ * @param msx TRUE for the MSX picture, which fades in once it's loaded.
  */
-void setupStoryScreen(void);
+void setupStoryScreen(Uint8 msx);
 
 /**
  * @brief Runs one frame of the scene. Called each frame in the STORY state.
@@ -31,11 +33,33 @@ void setupStoryScreen(void);
 void doStory(void);
 
 /**
- * @brief Starts the palette cycle out of the scene back to the overworld.
+ * @brief Starts the palette cycle out of the scene back to the overworld, a fade in MSX mode.
  *
  * The minigame leaves through this too.
  */
 void storyStartPalCycle(void);
+
+/**
+ * @brief Runs a frame of the MSX picture's load and fade in.
+ *
+ * @return TRUE once it's done, or right away for the NES picture.
+ */
+Uint8 storyFadeInFrame(void);
+
+/**
+ * @brief Gets how far up the scene's layer is scrolled, to move sprites with it.
+ *
+ * @return Lines scrolled, 0 for the NES picture.
+ */
+Sint16 storyScrollY(void);
+
+/**
+ * @brief Gets a color of the MSX scene's box.
+ *
+ * @param color NES box color 0-3.
+ * @return The color (0x00BBGGRR).
+ */
+Uint32 storyMsxBoxColor(Uint8 color);
 
 /**
  * @brief Draws the closed part of the shutters.

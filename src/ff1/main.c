@@ -31,11 +31,13 @@
 #include    "stdmap.h"
 #include    "shop.h"
 #include    "save.h"
-#include    "nesaudio.h"
+#include    "audio.h"
 #include    "music.h"
 #include    "story.h"
 #include    "minigame.h"
 #include    "sound.h"
+#include    "msxgfx.h"
+#include    "gfxmenu.h"
 
 /**
  * @brief Loads the ROM, sets up the game, then runs one state per frame.
@@ -44,6 +46,9 @@
  *
  * @return Never returns.
  */
+//Frames after a map rebuild before the display comes back, so the previous screen's sprites are gone.
+#define MAP_SHOW_FRAMES (3)
+
 int main() {
     int battle_rng_seeded = 0;
     int encounter_rng_seeded = 0;
@@ -52,7 +57,8 @@ int main() {
     cd_init();
     //16-byte iNES header plus 256KB of PRG ROM.
     cd_load("FFANTASY.BIN", (void *)LWRAM, 0x40010);
-    nesaudio_init((void *)LWRAM_BUFFER, musicInit, musicFrame);
+    msxInit();
+    audio_init(musicInit, musicFrame);
     sound_init();
 
     Uint8 *nes_head_ptr = (Uint8*) LWRAM;
@@ -97,6 +103,7 @@ int main() {
             softResetPending = FALSE;
             softReset();
         }
+        updateBattleSprites();
         switch(state) {
             case TO_SAD:
                 static_init();
@@ -163,6 +170,8 @@ int main() {
                 state = CHAR_NAME_STATE;
                 break;
             case TO_OW_STATE:
+                //Rebuilding the map takes several frames, so nothing is shown until it's ready.
+                sysBlankDisplay();
                 if(!encounter_rng_seeded) {
                     seedEncounterCounter();
                     encounter_rng_seeded = 1;
@@ -173,6 +182,7 @@ int main() {
                 print_init();
                 scroll_init();
                 player_ow_enter();
+                sysShowDisplay(MAP_SHOW_FRAMES);
                 break;
             case WIPE:
             case SM_PAL_CYCLE:
@@ -237,6 +247,17 @@ int main() {
             case BUGFIX_MENU:
                 bugfix_draw();
                 break;
+            case TO_GFX_MENU:
+                scroll_disable();
+                clearMenuPlane();
+                setupGfxScreen();
+                initGfxMenu();
+                static_init();
+                state = GFX_MENU;
+                break;
+            case GFX_MENU:
+                gfxmenu_draw();
+                break;
             case TO_STATUS_MENU:
                 scroll_disable();
                 clearMenuPlane();
@@ -280,11 +301,13 @@ int main() {
                 item_draw();
                 break;
             case TO_SM_STATE:
+                sysBlankDisplay();
                 determine_curr_char();
                 scroll_disable();
                 static_disable();
                 update_player_sprites();
                 sm_init(); //Sets the state.
+                sysShowDisplay(MAP_SHOW_FRAMES);
                 break;
             case SM_STATE:
                 sm_draw();
@@ -306,7 +329,7 @@ int main() {
             case TO_STORY:
                 scroll_disable();
                 clearMenuPlane();
-                setupStoryScreen();
+                setupStoryScreen(MSX_ON);
                 state = STORY;
                 break;
             case STORY:
@@ -317,7 +340,7 @@ int main() {
                 clearMenuPlane();
                 //NES LoadBridgeSceneGFX.
                 storySelect(FALSE);
-                setupStoryScreen();
+                setupStoryScreen(MSX_ON);
                 setupMinigame();
                 state = MINIGAME;
                 break;

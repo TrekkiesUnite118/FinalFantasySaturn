@@ -77,7 +77,7 @@ volatile int16* apu_get_exchip_buffer(void);
 /**
  * @brief Waits until the DSP's read position catches up with the APU.
  *
- * nesaudio_init calls it after apu_power, before the first APU frame.
+ * nesaudio_start calls it after apu_power, before the first APU frame.
  */
 void apu_start_sync(void);
 

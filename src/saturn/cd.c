@@ -34,6 +34,41 @@ void cd_load(char *filename, void *dataBuf, int read_size) {
     GFS_Close(gfs);
 }
 
+Sint32 cd_size(char *filename) {
+    Sint32 filesize;
+    Sint32 id = GFS_NameToId((Sint8 *)filename);
+    if(id < 0) {
+        return -1;
+    }
+    GfsHn gfs = GFS_Open(id);
+    if(gfs == NULL) {
+        return -1;
+    }
+    GFS_GetFileInfo(gfs, NULL, NULL, &filesize, NULL);
+    GFS_Close(gfs);
+    return filesize;
+}
+
+Sint32 cd_load_max(char *filename, void *dataBuf, Sint32 max_size) {
+    Sint32 filesize;
+    Sint32 id = GFS_NameToId((Sint8 *)filename);
+    if(id < 0) {
+        return -1;
+    }
+    GfsHn gfs = GFS_Open(id);
+    if(gfs == NULL) {
+        return -1;
+    }
+    GFS_GetFileInfo(gfs, NULL, NULL, &filesize, NULL);
+    if(filesize > max_size) {
+        GFS_Close(gfs);
+        return -1;
+    }
+    Sint32 read = GFS_Fread(gfs, filesize < SECT_SIZE ? 1 : (filesize >> 11) + 1, dataBuf, filesize);
+    GFS_Close(gfs);
+    return read == filesize ? filesize : -1;
+}
+
 Sint32 cd_load_nosize(char *filename, void *dataBuf) {
     Sint32 filesize;
     GfsHn gfs = GFS_Open(GFS_NameToId(filename));
