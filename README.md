@@ -71,7 +71,6 @@ To enable MSX Graphics and Sound, press the L shoulder button in the start menu 
 
 Possible ideas for future features are as follows:
 
-* Options for MSX Graphics and Sound.
 * Option for PS1 or Pixel Remaster Graphics and Sound.
 * Modern interface and quality of life improvements that have been added to later ports of the original game.
 * Options for CD Audio Music.
