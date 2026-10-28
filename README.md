@@ -59,9 +59,9 @@ Support for graphics and audio from the MSX2 port are now supported. You will ne
 
 https://github.com/romh-acking/final-fantasy-msx2-say-dos-tool
 
-Use this tool on an image of your MSX2 Final Fantasy Disk to extract the files and sector data. Then use the msxconf.jar file by pointing it to the extracted data as so:
+Use this tool on an image of your MSX2 Final Fantasy Disk to extract the files and sector data. Then use the msxconv.jar file by pointing it to the extracted data as so:
 
-java -jar mxsconf.jar <PATH_TO_EXTRACTED_MSX_FILES> <PATH_TO_MSX_SECTOR_DATA> MSXGFX.BIN MSXSND.BIN
+java -jar msxconv.jar <PATH_TO_EXTRACTED_MSX_FILES> <PATH_TO_MSX_SECTOR_DATA> MSXGFX.BIN MSXSND.BIN
 
 Copy the generated files to the cd directory and build the image.
 
@@ -71,7 +71,6 @@ To enable MSX Graphics and Sound, press the L shoulder button in the start menu 
 
 Possible ideas for future features are as follows:
 
-* Options for MSX Graphics and Sound.
 * Option for PS1 or Pixel Remaster Graphics and Sound.
 * Modern interface and quality of life improvements that have been added to later ports of the original game.
 * Options for CD Audio Music.
