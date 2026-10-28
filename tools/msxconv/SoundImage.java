@@ -14,6 +14,7 @@ import java.io.InputStream;
  *   0x3C000  song bank, all values big-endian:
  *            char[4] "MSXS", Uint16 version, Uint16 entry count,
  *            entries, 8 bytes each: Uint32 sound RAM address, Uint32 size
+ *   0x44000  band-limited PSG squares (see psgSquares)
  *
  * Song bank entries: 0 ORANYO.BIN, 1 FF.BGE, 2 MAIN.COM map -> song table (61 bytes, MSX directory
  * numbers), 3-23 the songs by MSX directory number 0x3C-0x50.
@@ -28,7 +29,6 @@ final class SoundImage {
     static final int FM_CYCLE = 1024;
     static final int WAVE_SINE = WAVE_BASE + 0x00000 + 4 * FM_CYCLE * 2;
     static final int WAVE_HALFSINE = WAVE_BASE + 0x05000 + 4 * FM_CYCLE * 2;
-    static final int WAVE_SQUARE = WAVE_BASE + 0x0A000;
     static final int WAVE_PSG_NOISE = WAVE_BASE + 0x0E000;
     static final int WAVE_OPLL_NOISE = WAVE_BASE + 0x1E000;
     static final int WAVE_NOISE_LEN = 0xFFFF;
@@ -46,6 +46,17 @@ final class SoundImage {
     static final int HH_TABLES = WAVE_BASE + 0x33800;
     static final int SONG_BANK = 0x3C000;
     static final int RAM_SIZE = 0x80000;
+
+    //PSG squares: count, period limits, then the tables, in one 64K bank (msx68k.s PSG_SQUARES).
+    static final int PSG_SQUARES = 0x44000;
+    static final int PSG_SQ_TABLES = PSG_SQUARES + 0x40;
+    static final int PSG_SQ_STRIDE = 0x804;
+    //Odd harmonics kept by each table, 0 = silent. Each is used for the periods whose highest
+    //kept harmonic stays below 22050 Hz.
+    static final int[] PSG_SQ_HARMONICS = {0, 1, 3, 5, 7, 11, 15, 21, 31, 45, 63, 89, 127, 181, 255};
+    static final double PSG_TONE_HZ = 1789772.5 / 16;
+    //The sine table's peak (4/pi of this) stays inside 16 bits.
+    static final double PSG_SQ_LEVEL = 25700;
 
     //Two-bit logic lookups: inputs of BIT_UNIT, BIT_STEP samples per set bit at msx68k.s MDL_BIT.
     static final int BIT_UNIT = 16384;
@@ -154,15 +165,34 @@ final class SoundImage {
         int data = at + 8 + entries.length * 8;
         for(int i = 0; i < entries.length; i++) {
             data = (data + 3) & ~3;
-            if(data + entries[i].length > RAM_SIZE) {
-                throw new IOException("song bank doesn't fit in sound RAM");
+            if(data + entries[i].length > PSG_SQUARES) {
+                throw new IOException("song bank runs into the PSG squares");
             }
             put32(at + 8 + i * 8, data);
             put32(at + 12 + i * 8, entries[i].length);
             System.arraycopy(entries[i], 0, ram, data, entries[i].length);
             data += entries[i].length;
         }
-        end = data;
+        end = psgSquares();
+    }
+
+    //Square waves without the harmonics that would alias at 44.1 kHz, one per band of PSG periods.
+    //Returns the end address.
+    private int psgSquares() {
+        int n = PSG_SQ_HARMONICS.length;
+        put16(PSG_SQUARES, n);
+        for(int t = 0; t < n; t++) {
+            int h = PSG_SQ_HARMONICS[t];
+            put16(PSG_SQUARES + 2 + t * 2, h == 0 ? 0 : (int)Math.floor(PSG_TONE_HZ * h / 22050) + 1);
+            loopTable(PSG_SQ_TABLES + t * PSG_SQ_STRIDE, i -> {
+                double v = 0;
+                for(int k = 1; k <= h; k += 2) {
+                    v += Math.sin(2 * Math.PI * k * i / 1024) / k;
+                }
+                return (int)Math.round(v * 4 / Math.PI * PSG_SQ_LEVEL);
+            });
+        }
+        return PSG_SQ_TABLES + n * PSG_SQ_STRIDE;
     }
 
     /**
@@ -250,8 +280,6 @@ final class SoundImage {
             put16(WAVE_SINE - 4 * FM_CYCLE * 2 + i * 2, s);
             put16(WAVE_HALFSINE - 4 * FM_CYCLE * 2 + i * 2, s > 0 ? s : 0);
         }
-        //PSG square at -1.5dB of full scale.
-        loopTable(WAVE_SQUARE, i -> i < 512 ? 27525 : -27525);
         //emu2413 short_noise = (h2 ^ h7) | (h3 ^ c5) | (c3 ^ c5), h = hi-hat phase, c = cymbal phase.
         bitTable(WAVE_BIT_HH_A, i -> ((i >> 2) ^ (i >> 7)) & 1, BIT_UNIT >> 8);
         bitTable(WAVE_BIT_HH_B, i -> (i >> 3) & 1, BIT_UNIT >> 8);

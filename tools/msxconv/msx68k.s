@@ -44,7 +44,6 @@ WAVE_BASE       equ $4000
 FM_CYCLE        equ 1024
 WAVE_SINE       equ WAVE_BASE+$00000+4*FM_CYCLE*2
 WAVE_HALFSINE   equ WAVE_BASE+$05000+4*FM_CYCLE*2
-WAVE_SQUARE     equ WAVE_BASE+$0A000
 WAVE_PSG_NOISE  equ WAVE_BASE+$0E000
 WAVE_OPLL_NOISE equ WAVE_BASE+$1E000
 WAVE_NOISE_LEN  equ $FFFF
@@ -60,6 +59,12 @@ WAVE_HH_LOOKUP  equ WAVE_BASE+$32000+512*2
 WAVE_SD_LOOKUP  equ WAVE_BASE+$32800+512*2
 WAVE_HH_RAMP    equ WAVE_BASE+$33000+512*2
 HH_TABLES       equ WAVE_BASE+$33800
+
+;Band-limited PSG squares: count.w, then count period limits.w (table i for periods >= limit i),
+;tables at +$40. All in one 64K bank, so a table switch only rewrites the low address word.
+PSG_SQUARES     equ $44000
+PSG_SQ_TABLES   equ PSG_SQUARES+$40
+PSG_SQ_STRIDE   equ $804
 
 ;HHTAB.BIN: count.w, pad.w, then per table key.w (fnum | block << 9), length.w, offset.l.
 HH_COUNT        equ 0
@@ -924,6 +929,23 @@ phaseVoice:
         movem.l (sp)+,d5-d7/a2
         rts
 
+;d1.w = PSG period. Returns d0.w = low address word of its band-limited square.
+psgSquare:
+        lea     PSG_SQUARES,a0
+        move.w  (a0)+,d0
+        subq.w  #1,d0
+        add.w   d0,d0
+.find:
+        cmp.w   (a0,d0.w),d1
+        bcc.s   .found
+        subq.w  #2,d0
+        bne.s   .find
+.found:
+        lsr.w   #1,d0
+        mulu.w  #PSG_SQ_STRIDE,d0
+        add.w   #PSG_SQ_TABLES&$FFFF,d0
+        rts
+
 ;PSG channel d0, d1 = retrigger.
 psgVoice:
         movem.l d5-d7,-(sp)
@@ -941,7 +963,7 @@ psgVoice:
         bsr     setWave
         bra.s   .pitch
 .square:
-        move.l  #WAVE_SQUARE,d1
+        move.l  #PSG_SQ_TABLES,d1
         move.w  #1024,d2
         moveq   #0,d3
         bsr     setWave
@@ -971,6 +993,8 @@ psgVoice:
         bne.s   .period
         moveq   #1,d1
 .period:
+        bsr     psgSquare
+        move.w  d0,2(a5,d5.w)
         move.l  #PSG_TONE_STEP,d0
         bsr     div32
 .step:
@@ -1259,7 +1283,7 @@ chipInit:
         moveq   #0,d7
 .psg:
         move.w  d7,d0
-        move.l  #WAVE_SQUARE,d1
+        move.l  #PSG_SQ_TABLES,d1
         move.w  #1024,d2
         moveq   #0,d3
         bsr     setWave
